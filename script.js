@@ -4,18 +4,22 @@ const GEMINI_API_KEY = 'AQ.Ab8RN6I8_8WZNIBdU9yNjCOc7QmFVKocEofRV8faySkXB2EvMg';
 const SYSTEM_PROMPT =
   'Você é o consultor financeiro de Yagho e Maria Eduarda. Você analisa o saldo livre deles (cerca de R$ 846 no cenário base) e o limite do cartão (R$ 500), além de usar a busca do Google para pesquisar preços reais de produtos (como aspiradores, móveis), comparar modelos e aconselhar quanto podem guardar para metas como viagem e carro sem comprometer as contas fixas.';
 
-const STORAGE_KEY = 'nosso_caixa_v2';
+const STORAGE_KEY = 'nosso_caixa_v3';
+const HISTORY_KEY = 'nosso_caixa_undo_v3';
+const THEME_KEY = 'nosso_caixa_theme';
+const MAX_UNDO = 200;
+
 const today = new Date();
 const defaultMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
 function initialIncomes(monthKey) {
   const d = `${monthKey}-05`;
   return [
-    { id: 'inc-1', description: 'Maria Eduarda - Cobi', category: 'Maria Eduarda - Fixo', amount: 1750.00, date: d, isDefaultMonthly: true },
-    { id: 'inc-2', description: 'Maria Eduarda - Dehon', category: 'Maria Eduarda - Fixo', amount: 300.00, date: d, isDefaultMonthly: true },
-    { id: 'inc-3', description: 'Maria Eduarda - Club', category: 'Maria Eduarda - Fixo', amount: 400.00, date: d, isDefaultMonthly: true },
-    { id: 'inc-4', description: 'Yagho - F&F Energia (Salário Base)', category: 'Yagho - Salário Base F&F', amount: 2000.00, date: d, isDefaultMonthly: true },
-    { id: 'inc-5', description: 'Yagho - F&F Energia (Ajuda de Custo)', category: 'Yagho - Ajuda de Custo F&F', amount: 500.00, date: d, isDefaultMonthly: true, isYaghoAllowance: true },
+    { id: 'inc-1', person: 'Maria Eduarda', description: 'Cobi', amount: 1750.00, date: d, isDefaultMonthly: true },
+    { id: 'inc-2', person: 'Maria Eduarda', description: 'Dehon', amount: 300.00, date: d, isDefaultMonthly: true },
+    { id: 'inc-3', person: 'Maria Eduarda', description: 'Club', amount: 400.00, date: d, isDefaultMonthly: true },
+    { id: 'inc-4', person: 'Yagho', description: 'F&F Energia (Salário Base)', amount: 2000.00, date: d, isDefaultMonthly: true },
+    { id: 'inc-5', person: 'Yagho', description: 'F&F Energia (Ajuda de Custo)', amount: 500.00, date: d, isDefaultMonthly: true, isYaghoAllowance: true },
   ];
 }
 
@@ -41,17 +45,84 @@ function initialFixedBills() {
   ];
 }
 
-let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {
-  currentMonthKey: defaultMonthKey,
-  cardLimitTotal: 500.00,
-  incomes: initialIncomes(defaultMonthKey),
-  fixedBills: initialFixedBills(),
-  dailyExpenses: [],
-  goals: [],
-  archives: [],
-};
+function createInitialState() {
+  return {
+    currentMonthKey: defaultMonthKey,
+    cardLimitTotal: 500.00,
+    incomes: initialIncomes(defaultMonthKey),
+    fixedBills: initialFixedBills(),
+    dailyExpenses: [],
+    goals: [],
+    goalCategories: ['Viagem', 'Carro', 'Móveis', 'Reserva'],
+    archives: [],
+  };
+}
 
-document.getElementById('inc-date').value = today.toISOString().slice(0, 10);
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || createInitialState();
+if (!Array.isArray(state.goalCategories)) {
+  state.goalCategories = ['Viagem', 'Carro', 'Móveis', 'Reserva'];
+}
+
+let undoStack = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+
+// Tema Claro / Escuro
+let currentTheme = localStorage.getItem(THEME_KEY) || 'light';
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem(THEME_KEY, theme);
+  const label = theme === 'dark' ? '☀ Modo Claro' : '◐ Modo Escuro';
+  document.getElementById('btn-theme-side').textContent = label;
+}
+applyTheme(currentTheme);
+
+function toggleTheme() {
+  applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+}
+document.getElementById('btn-theme-side').addEventListener('click', toggleTheme);
+document.getElementById('btn-theme-mobile').addEventListener('click', toggleTheme);
+
+// Pilha de Desfazer (200 ações)
+function pushUndo() {
+  undoStack.push(JSON.stringify(state));
+  if (undoStack.length > MAX_UNDO) {
+    undoStack.shift();
+  }
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(undoStack));
+  updateUndoButtons();
+}
+
+function performUndo() {
+  if (undoStack.length === 0) return;
+  const previousJson = undoStack.pop();
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(undoStack));
+  state = JSON.parse(previousJson);
+  saveState(false);
+  renderAll();
+  showToast(`Ação desfeita! (${undoStack.length} restante(s))`);
+}
+
+function updateUndoButtons() {
+  const count = undoStack.length;
+  const disabled = count === 0;
+  document.getElementById('btn-undo-side').disabled = disabled;
+  document.getElementById('btn-undo-side').textContent = `↶ Desfazer (${count})`;
+  document.getElementById('btn-undo-header').disabled = disabled;
+  document.getElementById('btn-undo-header').textContent = `↶ Desfazer (${count})`;
+  document.getElementById('btn-undo-mobile').disabled = disabled;
+  document.getElementById('btn-undo-mobile').textContent = `↶ ${count}`;
+}
+
+document.getElementById('btn-undo-side').addEventListener('click', performUndo);
+document.getElementById('btn-undo-header').addEventListener('click', performUndo);
+document.getElementById('btn-undo-mobile').addEventListener('click', performUndo);
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+    e.preventDefault();
+    performUndo();
+  }
+});
+
 document.getElementById('daily-date').value = today.toISOString().slice(0, 10);
 
 function brl(v) {
@@ -82,13 +153,25 @@ function showToast(msg) {
 }
 
 function computeBudget() {
-  const commissionActive = state.incomes.some((i) => i.category === 'Comissão F&F Yagho' && Number(i.amount) > 0);
+  const commissionActive = state.incomes.some((i) => {
+    const desc = (i.description || '').toLowerCase();
+    return i.person === 'Yagho' && desc.includes('comiss') && Number(i.amount) > 0;
+  });
+
   const effectiveIncomes = state.incomes.map((i) => ({
     ...i,
     suppressed: commissionActive && Boolean(i.isYaghoAllowance),
   }));
 
-  const totalIncome = effectiveIncomes.reduce((s, i) => s + (i.suppressed ? 0 : Number(i.amount)), 0);
+  const totalMaria = effectiveIncomes
+    .filter((i) => i.person === 'Maria Eduarda')
+    .reduce((s, i) => s + (i.suppressed ? 0 : Number(i.amount)), 0);
+
+  const totalYagho = effectiveIncomes
+    .filter((i) => i.person === 'Yagho')
+    .reduce((s, i) => s + (i.suppressed ? 0 : Number(i.amount)), 0);
+
+  const totalIncome = totalMaria + totalYagho;
   const totalFixed = state.fixedBills.reduce((s, b) => s + Number(b.amount), 0);
 
   let totalDailyPix = 0;
@@ -105,8 +188,8 @@ function computeBudget() {
   const pendingTotal = pendingBills.reduce((s, b) => s + Number(b.amount), 0);
 
   return {
-    commissionActive, effectiveIncomes, totalIncome, totalFixed,
-    totalDailyPix, totalDailyCard, totalSpent, freeBalance,
+    commissionActive, effectiveIncomes, totalMaria, totalYagho, totalIncome,
+    totalFixed, totalDailyPix, totalDailyCard, totalSpent, freeBalance,
     cardLimitAvailable, pendingBills, pendingTotal,
   };
 }
@@ -149,9 +232,9 @@ function buildForecast(monthsAhead = 6) {
   return results;
 }
 
-function saveState() {
+function saveState(syncRemote = true) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  if (SHEETS_URL && SHEETS_URL !== 'COLOQUE_AQUI_SEU_WEBHOOK') {
+  if (syncRemote && SHEETS_URL && SHEETS_URL !== 'COLOQUE_AQUI_SEU_WEBHOOK') {
     fetch(SHEETS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -172,7 +255,7 @@ async function loadFromSheets(manual = false) {
       renderAll();
       if (manual) showToast('Planilha sincronizada com sucesso!');
     } else if (manual) {
-      saveState();
+      saveState(true);
       showToast('Dados enviados para a planilha!');
     }
   } catch (err) {
@@ -182,9 +265,10 @@ async function loadFromSheets(manual = false) {
 }
 
 function renderAll() {
+  updateUndoButtons();
   const b = computeBudget();
   const mLabel = monthLabel(state.currentMonthKey);
-  document.getElementById('main-page-title').textContent = `FINANÇAS ${mLabel}`;
+  document.getElementById('header-month-pill').textContent = mLabel;
 
   // Visão Geral
   document.getElementById('ov-free').textContent = brl(b.freeBalance);
@@ -216,24 +300,31 @@ function renderAll() {
     </div>
   `).join('');
 
-  // Entradas
+  // Entradas (Maria Eduarda & Yagho separados)
   document.getElementById('inc-total').textContent = brl(b.totalIncome);
+  document.getElementById('inc-total-maria').textContent = brl(b.totalMaria);
+  document.getElementById('inc-total-yagho').textContent = brl(b.totalYagho);
   document.getElementById('inc-rule-banner').textContent = b.commissionActive
     ? 'Regra F&F ativa: Ajuda de Custo (R$ 500,00) zerada automaticamente pela Comissão F&F.'
     : 'Regra F&F padrão: Salário Base (R$ 2.000,00) + Ajuda de Custo (R$ 500,00).';
 
-  document.getElementById('income-list').innerHTML = b.effectiveIncomes.map((inc) => `
-    <div class="list-row">
-      <div>
-        <div class="row-title ${inc.suppressed ? 'strike' : ''}">${inc.description}</div>
-        <div class="row-sub">${inc.category}${inc.suppressed ? ' · Zerada pela Comissão F&F' : ''}</div>
+  const renderIncomeRows = (personName) => b.effectiveIncomes
+    .filter((inc) => inc.person === personName)
+    .map((inc) => `
+      <div class="list-row">
+        <div>
+          <div class="row-title ${inc.suppressed ? 'strike' : ''}">${inc.description}</div>
+          ${inc.suppressed ? '<div class="row-sub">Zerada pela Comissão F&F</div>' : ''}
+        </div>
+        <div class="btn-row">
+          <strong class="num ${inc.suppressed ? 'strike' : 'text-green'}">${inc.suppressed ? brl(0) : brl(inc.amount)}</strong>
+          <button type="button" class="btn-delete" onclick="deleteIncome('${inc.id}')">✕</button>
+        </div>
       </div>
-      <div class="btn-row">
-        <strong class="num ${inc.suppressed ? 'strike' : 'text-green'}">${inc.suppressed ? brl(0) : brl(inc.amount)}</strong>
-        <button type="button" class="btn-delete" onclick="deleteIncome('${inc.id}')">✕</button>
-      </div>
-    </div>
-  `).join('');
+    `).join('');
+
+  document.getElementById('income-list-maria').innerHTML = renderIncomeRows('Maria Eduarda');
+  document.getElementById('income-list-yagho').innerHTML = renderIncomeRows('Yagho');
 
   // Despesas & Fixos
   document.getElementById('exp-free').textContent = brl(b.freeBalance);
@@ -272,7 +363,12 @@ function renderAll() {
       </div>
     `).join('');
 
-  // Metas
+  // Categorias e Metas
+  const catSelect = document.getElementById('goal-cat');
+  const currentCat = catSelect.value;
+  catSelect.innerHTML = state.goalCategories.map((c) => `<option value="${c}">${c}</option>`).join('');
+  if (state.goalCategories.includes(currentCat)) catSelect.value = currentCat;
+
   document.getElementById('goals-list').innerHTML = state.goals.length === 0
     ? '<article class="card"><p class="card-meta">Nenhuma meta cadastrada.</p></article>'
     : state.goals.map((g) => {
@@ -329,38 +425,58 @@ document.querySelectorAll('[data-tab]').forEach((btn) => {
   btn.addEventListener('click', () => window.switchTab(btn.getAttribute('data-tab')));
 });
 
-// Ações Entradas
-document.getElementById('income-form').addEventListener('submit', (e) => {
+// Entradas Maria Eduarda e Yagho
+document.getElementById('form-income-maria').addEventListener('submit', (e) => {
   e.preventDefault();
+  pushUndo();
   state.incomes.unshift({
     id: crypto.randomUUID(),
-    category: document.getElementById('inc-category').value,
-    description: document.getElementById('inc-desc').value.trim(),
-    amount: Number(document.getElementById('inc-amount').value),
-    date: document.getElementById('inc-date').value,
+    person: 'Maria Eduarda',
+    description: document.getElementById('maria-desc').value.trim(),
+    amount: Number(document.getElementById('maria-amount').value),
+    date: today.toISOString().slice(0, 10),
     isDefaultMonthly: false,
   });
   saveState();
   renderAll();
-  showToast('Entrada registrada!');
+  showToast('Entrada adicionada para Maria Eduarda!');
   e.target.reset();
-  document.getElementById('inc-date').value = today.toISOString().slice(0, 10);
+});
+
+document.getElementById('form-income-yagho').addEventListener('submit', (e) => {
+  e.preventDefault();
+  pushUndo();
+  state.incomes.unshift({
+    id: crypto.randomUUID(),
+    person: 'Yagho',
+    description: document.getElementById('yagho-desc').value.trim(),
+    amount: Number(document.getElementById('yagho-amount').value),
+    date: today.toISOString().slice(0, 10),
+    isDefaultMonthly: false,
+  });
+  saveState();
+  renderAll();
+  showToast('Entrada adicionada para Yagho!');
+  e.target.reset();
 });
 
 window.deleteIncome = (id) => {
+  pushUndo();
   state.incomes = state.incomes.filter((i) => i.id !== id);
   saveState();
   renderAll();
 };
 
-// Ações Despesas & Fixos
+// Despesas & Fixos
 window.toggleFixedStatus = (id) => {
+  pushUndo();
   state.fixedBills = state.fixedBills.map((b) => b.id === id ? { ...b, status: b.status === 'Pago' ? 'Pendente' : 'Pago' } : b);
   saveState();
   renderAll();
 };
 
 window.advanceInstallment = (id) => {
+  pushUndo();
   state.fixedBills = state.fixedBills.filter((b) => {
     if (b.id !== id) return true;
     if (b.curr >= b.total) return false;
@@ -375,6 +491,7 @@ window.advanceInstallment = (id) => {
 document.getElementById('btn-edit-limit').addEventListener('click', () => {
   const novo = prompt('Novo limite total do cartão (R$):', String(state.cardLimitTotal));
   if (novo !== null && !Number.isNaN(Number(novo)) && Number(novo) >= 0) {
+    pushUndo();
     state.cardLimitTotal = Number(novo);
     saveState();
     renderAll();
@@ -398,6 +515,7 @@ document.getElementById('daily-installments').addEventListener('change', updateD
 
 document.getElementById('daily-form').addEventListener('submit', (e) => {
   e.preventDefault();
+  pushUndo();
   const totalAmount = Number(document.getElementById('daily-total').value);
   const installments = Number(document.getElementById('daily-installments').value);
   state.dailyExpenses.unshift({
@@ -420,20 +538,38 @@ document.getElementById('daily-form').addEventListener('submit', (e) => {
 });
 
 window.toggleDailyStatus = (id) => {
+  pushUndo();
   state.dailyExpenses = state.dailyExpenses.map((d) => d.id === id ? { ...d, status: d.status === 'Pago' ? 'Pendente' : 'Pago' } : d);
   saveState();
   renderAll();
 };
 
 window.deleteDaily = (id) => {
+  pushUndo();
   state.dailyExpenses = state.dailyExpenses.filter((d) => d.id !== id);
   saveState();
   renderAll();
 };
 
-// Metas
+// Metas e Novas Categorias
+document.getElementById('btn-add-goal-cat').addEventListener('click', () => {
+  const nova = prompt('Nome da nova categoria (ex.: Emergência, Reforma, Eletrônicos):');
+  if (nova && nova.trim()) {
+    const clean = nova.trim();
+    if (!state.goalCategories.includes(clean)) {
+      pushUndo();
+      state.goalCategories.push(clean);
+      saveState();
+      renderAll();
+      document.getElementById('goal-cat').value = clean;
+      showToast(`Categoria "${clean}" adicionada!`);
+    }
+  }
+});
+
 document.getElementById('goal-form').addEventListener('submit', (e) => {
   e.preventDefault();
+  pushUndo();
   state.goals.unshift({
     id: crypto.randomUUID(),
     category: document.getElementById('goal-cat').value,
@@ -449,6 +585,7 @@ document.getElementById('goal-form').addEventListener('submit', (e) => {
 });
 
 window.depositGoal = (id, amount) => {
+  pushUndo();
   state.goals = state.goals.map((g) => g.id === id ? { ...g, savedAmount: Math.min(g.targetAmount, g.savedAmount + amount) } : g);
   saveState();
   renderAll();
@@ -456,13 +593,15 @@ window.depositGoal = (id, amount) => {
 };
 
 window.deleteGoal = (id) => {
+  pushUndo();
   state.goals = state.goals.filter((g) => g.id !== id);
   saveState();
   renderAll();
 };
 
-// Virar o Mês
+// Virar o Mês & Restaurar Início
 document.getElementById('btn-rollover').addEventListener('click', () => {
+  pushUndo();
   const b = computeBudget();
   const completed = [];
   const nextFixed = [];
@@ -509,6 +648,19 @@ document.getElementById('btn-rollover').addEventListener('click', () => {
   showToast('Mês virado e arquivado com sucesso!');
 });
 
+document.getElementById('btn-reset-defaults').addEventListener('click', () => {
+  if (!confirm('Deseja restaurar todas as contas fixas, parcelas e salários para o padrão inicial?')) return;
+  pushUndo();
+  const fresh = createInitialState();
+  state.incomes = fresh.incomes;
+  state.fixedBills = fresh.fixedBills;
+  state.dailyExpenses = [];
+  state.cardLimitTotal = 500.00;
+  saveState();
+  renderAll();
+  showToast('Finanças restauradas para o padrão inicial!');
+});
+
 // Extrato do Mês
 document.getElementById('btn-generate-statement').addEventListener('click', () => {
   const b = computeBudget();
@@ -531,7 +683,7 @@ document.getElementById('btn-close-statement').addEventListener('click', () => {
 document.getElementById('btn-sync-sheets').addEventListener('click', () => loadFromSheets(true));
 document.getElementById('btn-sync-mobile').addEventListener('click', () => loadFromSheets(true));
 
-// Balão Flutuante Conselheiro IA (Gemini + Google Search + Contexto Oculto)
+// Balão Flutuante Conselheiro IA
 const chatDrawer = document.getElementById('chat-drawer');
 const chatMessages = document.getElementById('chat-messages');
 
