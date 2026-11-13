@@ -40,7 +40,13 @@
       </nav>
 
       <div class="sidebar-footer">
-        <button type="button" id="btn-sync-sheets" class="btn-sync-full">
+        <button type="button" id="btn-undo-side" class="btn-sync-full" disabled>
+          ↶ Desfazer (0)
+        </button>
+        <button type="button" id="btn-theme-side" class="btn-sync-full mt-8">
+          ◐ Modo Escuro
+        </button>
+        <button type="button" id="btn-sync-sheets" class="btn-sync-full mt-8">
           ↻ Sincronizar Planilha
         </button>
       </div>
@@ -50,14 +56,25 @@
     <div class="main-wrapper">
       <header class="mobile-topbar">
         <span class="brand-title">Nosso Caixa</span>
-        <button type="button" id="btn-sync-mobile" class="btn-outline">↻ Planilha</button>
+        <div class="btn-row">
+          <button type="button" id="btn-undo-mobile" class="btn-outline" disabled>↶ 0</button>
+          <button type="button" id="btn-theme-mobile" class="btn-outline">◐</button>
+          <button type="button" id="btn-sync-mobile" class="btn-outline">↻</button>
+        </div>
       </header>
 
       <main class="main-content">
-        <div class="page-header">
-          <h1 id="main-page-title">FINANÇAS Novembro de 2026</h1>
-          <button type="button" id="btn-generate-statement" class="btn-outline">Gerar Extrato</button>
-        </div>
+        <header class="page-header-modern">
+          <div>
+            <span id="header-month-pill" class="month-pill">Novembro de 2026</span>
+            <h1 class="header-main-title">Nosso Orçamento</h1>
+            <p class="header-subtitle">Controle financeiro unificado · Yagho &amp; Maria Eduarda</p>
+          </div>
+          <div class="btn-row">
+            <button type="button" id="btn-undo-header" class="btn-outline" disabled>↶ Desfazer</button>
+            <button type="button" id="btn-generate-statement" class="btn-primary">Gerar Extrato</button>
+          </div>
+        </header>
 
         <!-- ABA 1: VISÃO GERAL -->
         <section id="tab-visao-geral" class="tab-panel active">
@@ -100,47 +117,62 @@
         <!-- ABA 2: ENTRADAS -->
         <section id="tab-entradas" class="tab-panel">
           <article class="card">
-            <span class="card-label">Total de Entradas do Mês (Intocável pelos gastos)</span>
-            <strong id="inc-total" class="card-value num text-green">R$ 0,00</strong>
-            <p id="inc-rule-banner" class="card-meta mt-8"></p>
+            <div class="card-head">
+              <div>
+                <span class="card-label">Total de Entradas do Mês (Intocável pelos gastos)</span>
+                <strong id="inc-total" class="card-value num text-green">R$ 0,00</strong>
+                <p id="inc-rule-banner" class="card-meta mt-8"></p>
+              </div>
+            </div>
           </article>
 
-          <div class="two-col mt-20">
+          <div class="split-equal mt-20">
+            <!-- CAIXINHA MARIA EDUARDA -->
             <article class="card">
-              <h2>Nova Entrada</h2>
-              <p class="card-meta">Adicione extras, comissão F&amp;F ou novas empresas</p>
+              <div class="card-head-inline">
+                <h2>Maria Eduarda</h2>
+                <strong id="inc-total-maria" class="num text-green">R$ 0,00</strong>
+              </div>
+              <p class="card-meta">Adicione salário, extra ou nova fonte</p>
 
-              <form id="income-form" class="form-stack mt-16">
+              <form id="form-income-maria" class="form-stack mt-16">
                 <div class="field">
-                  <label for="inc-category">Categoria</label>
-                  <select id="inc-category" required>
-                    <option value="Extra Maria Eduarda">Extra Maria Eduarda</option>
-                    <option value="Comissão F&F Yagho">Comissão F&amp;F Yagho (zera Ajuda de R$ 500)</option>
-                    <option value="Nova Empresa Yagho">Nova Empresa Yagho (campo livre)</option>
-                    <option value="Outras Receitas">Outras Receitas</option>
-                  </select>
+                  <label for="maria-desc">Descrição</label>
+                  <input id="maria-desc" type="text" placeholder="Ex.: Extra, Bônus, Cobi..." required />
                 </div>
                 <div class="field">
-                  <label for="inc-desc">Descrição / Nome da Empresa</label>
-                  <input id="inc-desc" type="text" placeholder="Ex.: Comissão mês, Empresa 2 Yagho..." required />
+                  <label for="maria-amount">Valor (R$)</label>
+                  <input id="maria-amount" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required />
                 </div>
-                <div class="field-row">
-                  <div class="field">
-                    <label for="inc-amount">Valor (R$)</label>
-                    <input id="inc-amount" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required />
-                  </div>
-                  <div class="field">
-                    <label for="inc-date">Data</label>
-                    <input id="inc-date" type="date" required />
-                  </div>
-                </div>
-                <button type="submit" class="btn-green">Registrar Entrada</button>
+                <button type="submit" class="btn-green">Adicionar para Maria Eduarda</button>
               </form>
+
+              <div class="divider"></div>
+              <div id="income-list-maria" class="list-stack"></div>
             </article>
 
+            <!-- CAIXINHA YAGHO -->
             <article class="card">
-              <h2>Receitas Cadastradas</h2>
-              <div id="income-list" class="list-stack mt-12"></div>
+              <div class="card-head-inline">
+                <h2>Yagho</h2>
+                <strong id="inc-total-yagho" class="num text-green">R$ 0,00</strong>
+              </div>
+              <p class="card-meta">Digite "Comissão F&amp;F" na descrição para zerar os R$ 500 de ajuda</p>
+
+              <form id="form-income-yagho" class="form-stack mt-16">
+                <div class="field">
+                  <label for="yagho-desc">Descrição</label>
+                  <input id="yagho-desc" type="text" placeholder="Ex.: Comissão F&F, Empresa 2..." required />
+                </div>
+                <div class="field">
+                  <label for="yagho-amount">Valor (R$)</label>
+                  <input id="yagho-amount" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required />
+                </div>
+                <button type="submit" class="btn-primary">Adicionar para Yagho</button>
+              </form>
+
+              <div class="divider"></div>
+              <div id="income-list-yagho" class="list-stack"></div>
             </article>
           </div>
         </section>
@@ -247,17 +279,15 @@
           <div class="two-col">
             <article class="card">
               <h2>Nova Reserva / Meta</h2>
-              <p class="card-meta">Planeje viagem, carro ou móveis do casal</p>
+              <p class="card-meta">Planeje viagem, carro ou crie categorias próprias</p>
 
               <form id="goal-form" class="form-stack mt-16">
                 <div class="field">
-                  <label for="goal-cat">Categoria</label>
-                  <select id="goal-cat">
-                    <option value="Viagem">Viagem</option>
-                    <option value="Carro">Carro</option>
-                    <option value="Móveis">Móveis</option>
-                    <option value="Reserva">Reserva</option>
-                  </select>
+                  <div class="card-head-inline">
+                    <label for="goal-cat">Categoria</label>
+                    <button type="button" id="btn-add-goal-cat" class="link-btn">+ Nova Categoria</button>
+                  </div>
+                  <select id="goal-cat"></select>
                 </div>
                 <div class="field">
                   <label for="goal-title">Objetivo</label>
@@ -297,13 +327,23 @@
             </div>
           </article>
 
+          <article class="card mt-20">
+            <div class="card-head">
+              <div>
+                <h2>Restaurar Padrão Inicial</h2>
+                <p class="card-meta">Volta todas as 17 contas fixas/parcelas (incluindo Pintor 03/06 e Pintor 2 02/06) e os salários base originais.</p>
+              </div>
+              <button type="button" id="btn-reset-defaults" class="btn-danger-outline">Restaurar Início</button>
+            </div>
+          </article>
+
           <div id="archives-list" class="goals-stack mt-20"></div>
         </section>
       </main>
     </div>
   </div>
 
-  <!-- Notificação Toast (Planilha / Avisos) -->
+  <!-- Notificação Toast -->
   <div id="toast" class="toast hidden"></div>
 
   <!-- Modal Extrato do Mês -->
