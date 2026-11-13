@@ -8,6 +8,7 @@ const STORAGE_KEY = 'nosso_caixa_v3';
 const HISTORY_KEY = 'nosso_caixa_undo_v3';
 const THEME_KEY = 'nosso_caixa_theme';
 const PHOTO_KEY = 'pudi_financas_photo';
+const RAW_PHOTO_KEY = 'pudi_financas_raw_photo';
 const MAX_UNDO = 200;
 
 const TAB_TITLES = {
@@ -76,10 +77,11 @@ if (!Array.isArray(state.goalCategories)) {
 
 let undoStack = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
 
-// Foto do Casal (Upload com redimensionamento automático)
+// Foto do Casal + Editor Interativo de Centralização e Zoom
 function applyCouplePhoto(dataUrl) {
   const imgs = [document.getElementById('avatar-img-side'), document.getElementById('avatar-img-mobile')];
   const fallbacks = [document.getElementById('avatar-fallback-side'), document.getElementById('avatar-fallback-mobile')];
+  const adjustBtn = document.getElementById('avatar-adjust-side');
 
   if (dataUrl) {
     imgs.forEach((img) => {
@@ -87,40 +89,151 @@ function applyCouplePhoto(dataUrl) {
       img.classList.remove('hidden');
     });
     fallbacks.forEach((fb) => fb.classList.add('hidden'));
+    adjustBtn.classList.remove('hidden');
   } else {
     imgs.forEach((img) => img.classList.add('hidden'));
     fallbacks.forEach((fb) => fb.classList.remove('hidden'));
+    adjustBtn.classList.add('hidden');
   }
 }
 
 applyCouplePhoto(localStorage.getItem(PHOTO_KEY));
 
 const photoInput = document.getElementById('couple-photo-input');
+const cropModal = document.getElementById('photo-crop-modal');
+const cropCircle = document.getElementById('crop-circle-box');
+const cropImg = document.getElementById('crop-preview-img');
+const zoomRange = document.getElementById('crop-zoom-range');
+const zoomLabel = document.getElementById('crop-zoom-label');
+
+let cropState = {
+  imgObj: null,
+  baseScale: 1,
+  zoom: 1,
+  offsetX: 0,
+  offsetY: 0,
+  dragging: false,
+  startX: 0,
+  startY: 0,
+};
+
+function clampCropOffsets() {
+  if (!cropState.imgObj) return;
+  const boxSize = 210;
+  const scale = cropState.baseScale * cropState.zoom;
+  const dispW = cropState.imgObj.width * scale;
+  const dispH = cropState.imgObj.height * scale;
+  const minX = Math.min(0, boxSize - dispW);
+  const minY = Math.min(0, boxSize - dispH);
+  cropState.offsetX = Math.max(minX, Math.min(0, cropState.offsetX));
+  cropState.offsetY = Math.max(minY, Math.min(0, cropState.offsetY));
+}
+
+function updateCropTransform() {
+  if (!cropState.imgObj) return;
+  clampCropOffsets();
+  const scale = cropState.baseScale * cropState.zoom;
+  cropImg.style.width = `${cropState.imgObj.width * scale}px`;
+  cropImg.style.height = `${cropState.imgObj.height * scale}px`;
+  cropImg.style.transform = `translate(${cropState.offsetX}px, ${cropState.offsetY}px)`;
+  zoomLabel.textContent = `${Math.round(cropState.zoom * 100)}%`;
+}
+
+function openCropModal(rawSrc) {
+  const img = new Image();
+  img.onload = () => {
+    const boxSize = 210;
+    const baseScale = Math.max(boxSize / img.width, boxSize / img.height);
+    cropState = {
+      imgObj: img,
+      baseScale,
+      zoom: 1,
+      offsetX: (boxSize - img.width * baseScale) / 2,
+      offsetY: (boxSize - img.height * baseScale) / 2,
+      dragging: false,
+      startX: 0,
+      startY: 0,
+    };
+    zoomRange.value = '1';
+    cropImg.src = rawSrc;
+    updateCropTransform();
+    cropModal.classList.remove('hidden');
+  };
+  img.src = rawSrc;
+}
+
+cropCircle.addEventListener('pointerdown', (e) => {
+  cropState.dragging = true;
+  cropState.startX = e.clientX - cropState.offsetX;
+  cropState.startY = e.clientY - cropState.offsetY;
+  cropCircle.setPointerCapture(e.pointerId);
+});
+
+cropCircle.addEventListener('pointermove', (e) => {
+  if (!cropState.dragging) return;
+  cropState.offsetX = e.clientX - cropState.startX;
+  cropState.offsetY = e.clientY - cropState.startY;
+  updateCropTransform();
+});
+
+cropCircle.addEventListener('pointerup', () => { cropState.dragging = false; });
+cropCircle.addEventListener('pointercancel', () => { cropState.dragging = false; });
+
+zoomRange.addEventListener('input', () => {
+  const boxCenter = 105;
+  const oldScale = cropState.baseScale * cropState.zoom;
+  cropState.zoom = Number(zoomRange.value);
+  const newScale = cropState.baseScale * cropState.zoom;
+  cropState.offsetX = boxCenter - ((boxCenter - cropState.offsetX) / oldScale) * newScale;
+  cropState.offsetY = boxCenter - ((boxCenter - cropState.offsetY) / oldScale) * newScale;
+  updateCropTransform();
+});
+
+document.getElementById('btn-save-crop').addEventListener('click', () => {
+  if (!cropState.imgObj) return;
+  const outSize = 260;
+  const ratio = outSize / 210;
+  const scale = cropState.baseScale * cropState.zoom * ratio;
+  const canvas = document.createElement('canvas');
+  canvas.width = outSize;
+  canvas.height = outSize;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(
+    cropState.imgObj,
+    cropState.offsetX * ratio,
+    cropState.offsetY * ratio,
+    cropState.imgObj.width * scale,
+    cropState.imgObj.height * scale
+  );
+  const finalDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+  localStorage.setItem(PHOTO_KEY, finalDataUrl);
+  applyCouplePhoto(finalDataUrl);
+  cropModal.classList.add('hidden');
+  showToast('Foto centralizada na bolinha!');
+});
+
+document.getElementById('btn-close-crop').addEventListener('click', () => cropModal.classList.add('hidden'));
+document.getElementById('btn-pick-new-photo').addEventListener('click', () => photoInput.click());
+
 document.getElementById('avatar-btn-side').addEventListener('click', () => photoInput.click());
-document.getElementById('avatar-btn-mobile').addEventListener('click', () => photoInput.click());
+document.getElementById('avatar-adjust-side').addEventListener('click', () => {
+  const raw = localStorage.getItem(RAW_PHOTO_KEY) || localStorage.getItem(PHOTO_KEY);
+  if (raw) openCropModal(raw);
+});
+document.getElementById('avatar-btn-mobile').addEventListener('click', () => {
+  const raw = localStorage.getItem(RAW_PHOTO_KEY) || localStorage.getItem(PHOTO_KEY);
+  if (raw) openCropModal(raw);
+  else photoInput.click();
+});
 
 photoInput.addEventListener('change', (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const size = 240;
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      const minSide = Math.min(img.width, img.height);
-      const sx = (img.width - minSide) / 2;
-      const sy = (img.height - minSide) / 2;
-      ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
-      const compressed = canvas.toDataURL('image/jpeg', 0.85);
-      localStorage.setItem(PHOTO_KEY, compressed);
-      applyCouplePhoto(compressed);
-      showToast('Foto do Pudicasal atualizada!');
-    };
-    img.src = ev.target.result;
+    const rawDataUrl = ev.target.result;
+    try { localStorage.setItem(RAW_PHOTO_KEY, rawDataUrl); } catch {}
+    openCropModal(rawDataUrl);
   };
   reader.readAsDataURL(file);
   e.target.value = '';
