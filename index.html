@@ -3,21 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nosso Caixa — Yagho &amp; Maria Eduarda</title>
+  <title>Pudi Finanças — Maria Eduarda &amp; Yagho</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <input type="file" id="couple-photo-input" accept="image/*" class="hidden" />
+
   <div class="app-shell">
     <!-- SIDEBAR LATERAL (Desktop) -->
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <div class="brand-icon">NC</div>
+        <button type="button" id="avatar-btn-side" class="avatar-trigger" title="Clique para colocar ou trocar a foto do casal">
+          <img id="avatar-img-side" class="avatar-img hidden" alt="Foto Maria Eduarda & Yagho" />
+          <span id="avatar-fallback-side" class="avatar-fallback">M&amp;Y</span>
+          <span class="avatar-badge">+</span>
+        </button>
         <div>
-          <span class="brand-title">Nosso Caixa</span>
-          <span class="brand-sub">Yagho &amp; Maria</span>
+          <span class="brand-title">Pudi Finanças</span>
+          <span class="brand-sub">Maria Eduarda &amp; Yagho</span>
         </div>
       </div>
 
@@ -55,7 +61,16 @@
     <!-- ÁREA PRINCIPAL -->
     <div class="main-wrapper">
       <header class="mobile-topbar">
-        <span class="brand-title">Nosso Caixa</span>
+        <div class="mobile-brand-group">
+          <button type="button" id="avatar-btn-mobile" class="avatar-trigger avatar-sm" title="Trocar foto">
+            <img id="avatar-img-mobile" class="avatar-img hidden" alt="Foto do casal" />
+            <span id="avatar-fallback-mobile" class="avatar-fallback">M&amp;Y</span>
+          </button>
+          <div>
+            <span class="brand-title">Pudi Finanças</span>
+            <span class="brand-sub">Maria Eduarda &amp; Yagho</span>
+          </div>
+        </div>
         <div class="btn-row">
           <button type="button" id="btn-undo-mobile" class="btn-outline" disabled>↶ 0</button>
           <button type="button" id="btn-theme-mobile" class="btn-outline">◐</button>
@@ -66,9 +81,9 @@
       <main class="main-content">
         <header class="page-header-modern">
           <div>
-            <span id="header-month-pill" class="month-pill">Novembro de 2026</span>
-            <h1 class="header-main-title">Nosso Orçamento</h1>
-            <p class="header-subtitle">Controle financeiro unificado · Yagho &amp; Maria Eduarda</p>
+            <span id="header-month-pill" class="couple-tag">Novembro de 2026</span>
+            <h1 id="header-tab-title" class="header-main-title">Visão Geral</h1>
+            <p id="header-status-subtitle" class="header-subtitle">Resumo financeiro unificado</p>
           </div>
           <div class="btn-row">
             <button type="button" id="btn-undo-header" class="btn-outline" disabled>↶ Desfazer</button>
@@ -352,7 +367,7 @@
       <div class="card-head">
         <div>
           <h2 id="statement-title">Extrato do Mês</h2>
-          <p class="card-meta">Nosso Caixa · Yagho e Maria Eduarda</p>
+          <p class="card-meta">Pudi Finanças · Maria Eduarda &amp; Yagho</p>
         </div>
         <div class="btn-row no-print">
           <button type="button" onclick="window.print()" class="btn-primary">Imprimir</button>
@@ -376,7 +391,7 @@
     </div>
     <div id="chat-messages" class="chat-messages">
       <div class="chat-msg model">
-        Olá, Yagho e Maria Eduarda! Já acompanho o saldo livre, limite do cartão, fixos e metas de vocês. Como posso ajudar?
+        Olá, Maria Eduarda e Yagho! Já acompanho o saldo livre, limite do cartão, fixos e metas do Pudicasal. Como posso ajudar?
       </div>
     </div>
     <form id="chat-form" class="chat-input-bar">
