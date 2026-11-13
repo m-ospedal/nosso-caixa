@@ -6,272 +6,305 @@
   <title>Nosso Caixa — Yagho &amp; Maria Eduarda</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="container topbar-inner">
-      <span class="brand">Nosso Caixa</span>
-      <nav class="desktop-nav" aria-label="Navegação principal">
-        <button type="button" class="nav-link active" data-tab="visao-geral">Visão Geral</button>
-        <button type="button" class="nav-link" data-tab="entradas">Entradas</button>
-        <button type="button" class="nav-link" data-tab="despesas">Despesas &amp; Fixos</button>
-        <button type="button" class="nav-link" data-tab="metas">Reservas &amp; Metas</button>
-        <button type="button" class="nav-link" data-tab="arquivos">Arquivos</button>
+  <div class="app-shell">
+    <!-- SIDEBAR LATERAL (Desktop) -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">NC</div>
+        <div>
+          <span class="brand-title">Nosso Caixa</span>
+          <span class="brand-sub">Yagho &amp; Maria</span>
+        </div>
+      </div>
+
+      <nav class="side-nav" aria-label="Navegação principal">
+        <button type="button" class="side-link active" data-tab="visao-geral">
+          <span class="nav-dot"></span> Visão Geral
+        </button>
+        <button type="button" class="side-link" data-tab="entradas">
+          <span class="nav-dot"></span> Entradas
+        </button>
+        <button type="button" class="side-link" data-tab="despesas">
+          <span class="nav-dot"></span> Despesas &amp; Fixos
+        </button>
+        <button type="button" class="side-link" data-tab="metas">
+          <span class="nav-dot"></span> Reservas &amp; Metas
+        </button>
+        <button type="button" class="side-link" data-tab="arquivos">
+          <span class="nav-dot"></span> Arquivos
+        </button>
       </nav>
-      <button type="button" id="btn-sync-sheets" class="btn-outline">Planilha</button>
-    </div>
-  </header>
 
-  <main class="container main-content">
-    <div class="page-header">
-      <h1>Finanças de Yagho e Maria Eduarda</h1>
-      <p id="active-month-label">Orçamento 100% unificado</p>
-    </div>
+      <div class="sidebar-footer">
+        <button type="button" id="btn-sync-sheets" class="btn-sync-full">
+          ↻ Sincronizar Planilha
+        </button>
+      </div>
+    </aside>
 
-    <!-- ABA 1: VISÃO GERAL -->
-    <section id="tab-visao-geral" class="tab-panel active">
-      <div id="pending-alert" class="alert-box hidden"></div>
+    <!-- ÁREA PRINCIPAL -->
+    <div class="main-wrapper">
+      <header class="mobile-topbar">
+        <span class="brand-title">Nosso Caixa</span>
+        <button type="button" id="btn-sync-mobile" class="btn-outline">↻ Planilha</button>
+      </header>
 
-      <section class="kpi-grid-4" aria-label="Resumo geral">
-        <article class="card">
-          <span class="card-label">Livre para Gastar</span>
-          <strong id="ov-free" class="card-value num text-blue">R$ 0,00</strong>
-          <span class="card-meta">Entradas − Fixos − Pix/Débito</span>
-        </article>
-        <article class="card">
-          <span class="card-label">Total de Entradas</span>
-          <strong id="ov-income" class="card-value num text-green">+ R$ 0,00</strong>
-          <span id="ov-income-note" class="card-meta">Receitas do mês</span>
-        </article>
-        <article class="card">
-          <span class="card-label">Total Gasto no Mês</span>
-          <strong id="ov-spent" class="card-value num text-red">− R$ 0,00</strong>
-          <span class="card-meta">Fixos + Avulsos</span>
-        </article>
-        <article class="card">
-          <span class="card-label">Limite Disponível no Cartão</span>
-          <strong id="ov-card" class="card-value num">R$ 500,00</strong>
-          <span id="ov-card-note" class="card-meta">De R$ 500,00</span>
-        </article>
-      </section>
-
-      <article class="card mt-20">
-        <div class="card-head">
-          <div>
-            <h2>Resumo do Mês</h2>
-            <p class="card-meta">Gere um documento limpo para visualização ou impressão</p>
-          </div>
-          <button type="button" id="btn-generate-statement" class="btn-primary">Gerar Extrato do Mês</button>
+      <main class="main-content">
+        <div class="page-header">
+          <h1 id="main-page-title">FINANÇAS Novembro de 2026</h1>
+          <button type="button" id="btn-generate-statement" class="btn-outline">Gerar Extrato</button>
         </div>
-        <div id="ov-fixed-preview" class="list-stack"></div>
-      </article>
-    </section>
 
-    <!-- ABA 2: ENTRADAS -->
-    <section id="tab-entradas" class="tab-panel">
-      <article class="card">
-        <span class="card-label">Total de Entradas do Mês (Intocável pelos gastos)</span>
-        <strong id="inc-total" class="card-value num text-green">+ R$ 0,00</strong>
-        <p id="inc-rule-banner" class="card-meta mt-8"></p>
-      </article>
+        <!-- ABA 1: VISÃO GERAL -->
+        <section id="tab-visao-geral" class="tab-panel active">
+          <div id="pending-alert" class="alert-box hidden"></div>
 
-      <div class="two-col mt-20">
-        <article class="card">
-          <h2>Nova Entrada</h2>
-          <p class="card-meta">Adicione extras, comissão F&amp;F ou novas empresas</p>
+          <section class="kpi-grid-4" aria-label="Resumo geral">
+            <article class="card kpi-card">
+              <span class="card-label">Livre para Gastar</span>
+              <strong id="ov-free" class="card-value num text-blue">R$ 0,00</strong>
+              <span class="card-meta">Entradas − Fixos − Pix/Débito</span>
+            </article>
+            <article class="card kpi-card">
+              <span class="card-label">Total de Entradas</span>
+              <strong id="ov-income" class="card-value num text-green">R$ 0,00</strong>
+              <span id="ov-income-note" class="card-meta">Receitas do mês</span>
+            </article>
+            <article class="card kpi-card">
+              <span class="card-label">Total Gasto no Mês</span>
+              <strong id="ov-spent" class="card-value num text-red">R$ 0,00</strong>
+              <span class="card-meta">Fixos + Avulsos</span>
+            </article>
+            <article class="card kpi-card">
+              <span class="card-label">Limite Disponível no Cartão</span>
+              <strong id="ov-card" class="card-value num">R$ 500,00</strong>
+              <span id="ov-card-note" class="card-meta">De R$ 500,00</span>
+            </article>
+          </section>
 
-          <form id="income-form" class="form-stack mt-16">
-            <div class="field">
-              <label for="inc-category">Categoria</label>
-              <select id="inc-category" required>
-                <option value="Extra Maria Eduarda">Extra Maria Eduarda</option>
-                <option value="Comissão F&F Yagho">Comissão F&amp;F Yagho (zera Ajuda de R$ 500)</option>
-                <option value="Nova Empresa Yagho">Nova Empresa Yagho (campo livre)</option>
-                <option value="Outras Receitas">Outras Receitas</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="inc-desc">Descrição / Nome da Empresa</label>
-              <input id="inc-desc" type="text" placeholder="Ex.: Comissão mês, Empresa 2 Yagho..." required />
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="inc-amount">Valor (R$)</label>
-                <input id="inc-amount" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required />
-              </div>
-              <div class="field">
-                <label for="inc-date">Data</label>
-                <input id="inc-date" type="date" required />
+          <article class="card mt-24">
+            <div class="card-head">
+              <div>
+                <h2>Resumo de Gastos para os Próximos Meses</h2>
+                <p class="card-meta">Projeção automática dos fixos conforme as parcelas vão acabando</p>
               </div>
             </div>
-            <button type="submit" class="btn-green">Registrar Entrada</button>
-          </form>
-        </article>
+            <div id="ov-forecast-grid" class="forecast-grid mt-16"></div>
+          </article>
+        </section>
 
-        <article class="card">
-          <h2>Receitas Cadastradas</h2>
-          <div id="income-list" class="list-stack mt-12"></div>
-        </article>
-      </div>
-    </section>
+        <!-- ABA 2: ENTRADAS -->
+        <section id="tab-entradas" class="tab-panel">
+          <article class="card">
+            <span class="card-label">Total de Entradas do Mês (Intocável pelos gastos)</span>
+            <strong id="inc-total" class="card-value num text-green">R$ 0,00</strong>
+            <p id="inc-rule-banner" class="card-meta mt-8"></p>
+          </article>
 
-    <!-- ABA 3: DESPESAS & FIXOS -->
-    <section id="tab-despesas" class="tab-panel">
-      <section class="kpi-grid-3" aria-label="Indicadores de despesas">
-        <article class="card">
-          <span class="card-label">Livre para Gastar</span>
-          <strong id="exp-free" class="card-value num text-blue">R$ 0,00</strong>
-          <span class="card-meta">Entradas − Fixos − Pix/Débito</span>
-        </article>
-        <article class="card">
-          <span class="card-label">Total Gasto no Mês</span>
-          <strong id="exp-total" class="card-value num text-red">− R$ 0,00</strong>
-          <span class="card-meta">Fixos + Dia a dia</span>
-        </article>
-        <article class="card">
-          <div class="card-head-inline">
-            <span class="card-label">Limite Disponível no Cartão</span>
-            <button type="button" id="btn-edit-limit" class="link-btn">Editar</button>
+          <div class="two-col mt-20">
+            <article class="card">
+              <h2>Nova Entrada</h2>
+              <p class="card-meta">Adicione extras, comissão F&amp;F ou novas empresas</p>
+
+              <form id="income-form" class="form-stack mt-16">
+                <div class="field">
+                  <label for="inc-category">Categoria</label>
+                  <select id="inc-category" required>
+                    <option value="Extra Maria Eduarda">Extra Maria Eduarda</option>
+                    <option value="Comissão F&F Yagho">Comissão F&amp;F Yagho (zera Ajuda de R$ 500)</option>
+                    <option value="Nova Empresa Yagho">Nova Empresa Yagho (campo livre)</option>
+                    <option value="Outras Receitas">Outras Receitas</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="inc-desc">Descrição / Nome da Empresa</label>
+                  <input id="inc-desc" type="text" placeholder="Ex.: Comissão mês, Empresa 2 Yagho..." required />
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label for="inc-amount">Valor (R$)</label>
+                    <input id="inc-amount" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required />
+                  </div>
+                  <div class="field">
+                    <label for="inc-date">Data</label>
+                    <input id="inc-date" type="date" required />
+                  </div>
+                </div>
+                <button type="submit" class="btn-green">Registrar Entrada</button>
+              </form>
+            </article>
+
+            <article class="card">
+              <h2>Receitas Cadastradas</h2>
+              <div id="income-list" class="list-stack mt-12"></div>
+            </article>
           </div>
-          <strong id="exp-card" class="card-value num">R$ 500,00</strong>
-          <span id="exp-card-note" class="card-meta">Limite total: R$ 500,00</span>
-        </article>
-      </section>
+        </section>
 
-      <div class="two-col mt-20">
-        <article class="card">
-          <h2>Novos Gastos do Dia a Dia</h2>
-          <p class="card-meta">Parcelamento automático de 1x a 12x</p>
+        <!-- ABA 3: DESPESAS & FIXOS -->
+        <section id="tab-despesas" class="tab-panel">
+          <section class="kpi-grid-3" aria-label="Indicadores de despesas">
+            <article class="card kpi-card">
+              <span class="card-label">Livre para Gastar</span>
+              <strong id="exp-free" class="card-value num text-blue">R$ 0,00</strong>
+              <span class="card-meta">Entradas − Fixos − Pix/Débito</span>
+            </article>
+            <article class="card kpi-card">
+              <span class="card-label">Total Gasto no Mês</span>
+              <strong id="exp-total" class="card-value num text-red">R$ 0,00</strong>
+              <span class="card-meta">Fixos + Dia a dia</span>
+            </article>
+            <article class="card kpi-card">
+              <div class="card-head-inline">
+                <span class="card-label">Limite Disponível no Cartão</span>
+                <button type="button" id="btn-edit-limit" class="link-btn">Editar</button>
+              </div>
+              <strong id="exp-card" class="card-value num">R$ 500,00</strong>
+              <span id="exp-card-note" class="card-meta">Limite total: R$ 500,00</span>
+            </article>
+          </section>
 
-          <form id="daily-form" class="form-stack mt-16">
-            <div class="field">
-              <label for="daily-desc">Descrição</label>
-              <input id="daily-desc" type="text" placeholder="Ex.: Farmácia, Aspirador, Mercado" required />
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="daily-total">Valor Total (R$)</label>
-                <input id="daily-total" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required />
-              </div>
-              <div class="field">
-                <label for="daily-date">Data</label>
-                <input id="daily-date" type="date" required />
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="daily-method">Pagamento</label>
-                <select id="daily-method">
-                  <option value="Pix/Débito">Pix / Débito</option>
-                  <option value="Cartão de Crédito">Cartão de Crédito</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="daily-installments">Parcelas</label>
-                <select id="daily-installments">
-                  <option value="1">1x (À vista)</option>
-                  <option value="2">2x</option>
-                  <option value="3">3x</option>
-                  <option value="4">4x</option>
-                  <option value="5">5x</option>
-                  <option value="6">6x</option>
-                  <option value="7">7x</option>
-                  <option value="8">8x</option>
-                  <option value="9">9x</option>
-                  <option value="10">10x</option>
-                  <option value="11">11x</option>
-                  <option value="12">12x</option>
-                </select>
-              </div>
-            </div>
-            <div class="field">
-              <label for="daily-status">Status</label>
-              <select id="daily-status">
-                <option value="Pago">Pago</option>
-                <option value="Pendente">Pendente</option>
-              </select>
-            </div>
-            <p id="daily-preview" class="card-meta num hidden"></p>
-            <button type="submit" class="btn-primary">Lançar Gasto</button>
-          </form>
+          <div class="two-col mt-20">
+            <article class="card">
+              <h2>Novos Gastos do Dia a Dia</h2>
+              <p class="card-meta">Parcelamento automático de 1x a 12x</p>
 
-          <div class="divider"></div>
-          <h3>Gastos Avulsos do Mês</h3>
-          <div id="daily-list" class="list-stack mt-12"></div>
-        </article>
+              <form id="daily-form" class="form-stack mt-16">
+                <div class="field">
+                  <label for="daily-desc">Descrição</label>
+                  <input id="daily-desc" type="text" placeholder="Ex.: Farmácia, Aspirador, Mercado" required />
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label for="daily-total">Valor Total (R$)</label>
+                    <input id="daily-total" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required />
+                  </div>
+                  <div class="field">
+                    <label for="daily-date">Data</label>
+                    <input id="daily-date" type="date" required />
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label for="daily-method">Pagamento</label>
+                    <select id="daily-method">
+                      <option value="Pix/Débito">Pix / Débito</option>
+                      <option value="Cartão de Crédito">Cartão de Crédito</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="daily-installments">Parcelas</label>
+                    <select id="daily-installments">
+                      <option value="1">1x (À vista)</option>
+                      <option value="2">2x</option>
+                      <option value="3">3x</option>
+                      <option value="4">4x</option>
+                      <option value="5">5x</option>
+                      <option value="6">6x</option>
+                      <option value="7">7x</option>
+                      <option value="8">8x</option>
+                      <option value="9">9x</option>
+                      <option value="10">10x</option>
+                      <option value="11">11x</option>
+                      <option value="12">12x</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="daily-status">Status</label>
+                  <select id="daily-status">
+                    <option value="Pago">Pago</option>
+                    <option value="Pendente">Pendente</option>
+                  </select>
+                </div>
+                <p id="daily-preview" class="card-meta num hidden"></p>
+                <button type="submit" class="btn-primary">Lançar Gasto</button>
+              </form>
 
-        <article class="card">
-          <div class="card-head">
-            <div>
-              <h2>Gastos Fixos e Parcelados</h2>
-              <p id="fixed-total-label" class="card-meta num">Total: R$ 4.103,39</p>
-            </div>
+              <div class="divider"></div>
+              <h3>Gastos Avulsos do Mês</h3>
+              <div id="daily-list" class="list-stack mt-12"></div>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <h2>Gastos Fixos e Parcelados</h2>
+                  <p id="fixed-total-label" class="card-meta num">Total: R$ 4.103,39</p>
+                </div>
+              </div>
+              <div id="fixed-list" class="list-stack mt-8"></div>
+            </article>
           </div>
-          <div id="fixed-list" class="list-stack"></div>
-        </article>
-      </div>
-    </section>
+        </section>
 
-    <!-- ABA 4: RESERVAS & METAS -->
-    <section id="tab-metas" class="tab-panel">
-      <div class="two-col">
-        <article class="card">
-          <h2>Nova Reserva / Meta</h2>
-          <p class="card-meta">Planeje viagem, carro ou móveis do casal</p>
+        <!-- ABA 4: RESERVAS & METAS -->
+        <section id="tab-metas" class="tab-panel">
+          <div class="two-col">
+            <article class="card">
+              <h2>Nova Reserva / Meta</h2>
+              <p class="card-meta">Planeje viagem, carro ou móveis do casal</p>
 
-          <form id="goal-form" class="form-stack mt-16">
-            <div class="field">
-              <label for="goal-cat">Categoria</label>
-              <select id="goal-cat">
-                <option value="Viagem">Viagem</option>
-                <option value="Carro">Carro</option>
-                <option value="Móveis">Móveis</option>
-                <option value="Reserva">Reserva</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="goal-title">Objetivo</label>
-              <input id="goal-title" type="text" placeholder="Ex.: Viagem de férias" required />
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="goal-target">Valor Total (R$)</label>
-                <input id="goal-target" type="number" step="0.01" min="1" inputmode="decimal" required />
-              </div>
-              <div class="field">
-                <label for="goal-monthly">Poupança / mês (R$)</label>
-                <input id="goal-monthly" type="number" step="0.01" min="1" inputmode="decimal" required />
-              </div>
-            </div>
-            <div class="field">
-              <label for="goal-saved">Já guardado (R$)</label>
-              <input id="goal-saved" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00" />
-            </div>
-            <button type="submit" class="btn-primary">Criar Meta</button>
-          </form>
-        </article>
+              <form id="goal-form" class="form-stack mt-16">
+                <div class="field">
+                  <label for="goal-cat">Categoria</label>
+                  <select id="goal-cat">
+                    <option value="Viagem">Viagem</option>
+                    <option value="Carro">Carro</option>
+                    <option value="Móveis">Móveis</option>
+                    <option value="Reserva">Reserva</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="goal-title">Objetivo</label>
+                  <input id="goal-title" type="text" placeholder="Ex.: Viagem de férias" required />
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label for="goal-target">Valor Total (R$)</label>
+                    <input id="goal-target" type="number" step="0.01" min="1" inputmode="decimal" required />
+                  </div>
+                  <div class="field">
+                    <label for="goal-monthly">Poupança / mês (R$)</label>
+                    <input id="goal-monthly" type="number" step="0.01" min="1" inputmode="decimal" required />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="goal-saved">Já guardado (R$)</label>
+                  <input id="goal-saved" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00" />
+                </div>
+                <button type="submit" class="btn-primary">Criar Meta</button>
+              </form>
+            </article>
 
-        <div id="goals-list" class="goals-stack"></div>
-      </div>
-    </section>
-
-    <!-- ABA 5: ARQUIVOS -->
-    <section id="tab-arquivos" class="tab-panel">
-      <article class="card">
-        <div class="card-head">
-          <div>
-            <h2>Virar o Mês</h2>
-            <p class="card-meta">Arquiva o mês atual, zera os gastos avulsos (1x), avança parcelas (ex.: 04/12 → 05/12) e encerra as concluídas (ex.: 04/04).</p>
+            <div id="goals-list" class="goals-stack"></div>
           </div>
-          <button type="button" id="btn-rollover" class="btn-primary">Virar o Mês</button>
-        </div>
-      </article>
+        </section>
 
-      <div id="archives-list" class="goals-stack mt-20"></div>
-    </section>
-  </main>
+        <!-- ABA 5: ARQUIVOS -->
+        <section id="tab-arquivos" class="tab-panel">
+          <article class="card">
+            <div class="card-head">
+              <div>
+                <h2>Virar o Mês</h2>
+                <p class="card-meta">Arquiva o mês atual, zera os gastos avulsos (1x), avança parcelas (ex.: 04/12 → 05/12) e encerra as concluídas (ex.: 04/04).</p>
+              </div>
+              <button type="button" id="btn-rollover" class="btn-primary">Virar o Mês</button>
+            </div>
+          </article>
+
+          <div id="archives-list" class="goals-stack mt-20"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Notificação Toast (Planilha / Avisos) -->
+  <div id="toast" class="toast hidden"></div>
 
   <!-- Modal Extrato do Mês -->
   <div id="statement-modal" class="modal hidden" role="dialog" aria-modal="true">
@@ -324,5 +357,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-
-
