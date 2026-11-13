@@ -74,35 +74,46 @@ body {
 .mt-20 { margin-top: 20px; }
 .mt-24 { margin-top: 24px; }
 
-/* Avatar / Foto do Casal */
+/* Avatar / Bolinha do Casal */
+.avatar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
 .avatar-trigger {
   position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 999px;
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  min-height: 54px;
+  border-radius: 50% !important;
   border: 2px solid var(--blue);
   padding: 2px;
   background: var(--surface);
   cursor: pointer;
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
   transition: transform 0.15s ease;
 }
 
 .avatar-trigger:hover { transform: scale(1.05); }
 
 .avatar-sm {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .avatar-img {
   width: 100%;
   height: 100%;
-  border-radius: 999px;
+  border-radius: 50% !important;
   object-fit: cover;
   display: block;
 }
@@ -110,11 +121,11 @@ body {
 .avatar-fallback {
   width: 100%;
   height: 100%;
-  border-radius: 999px;
+  border-radius: 50%;
   background: linear-gradient(135deg, var(--blue), var(--purple));
   color: #fff;
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -126,15 +137,64 @@ body {
   right: -2px;
   width: 18px;
   height: 18px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--blue);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 2px solid var(--surface);
+}
+
+.avatar-adjust-btn {
+  border: none;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.avatar-adjust-btn:hover { background: var(--blue); color: #fff; }
+
+/* Modal de Recorte / Centralização na Bolinha */
+.crop-preview-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  background: var(--surface-alt);
+  border-radius: 16px;
+  border: 1px dashed var(--border);
+}
+
+.crop-circle-box {
+  position: relative;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--blue);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  background: #0f172a;
+}
+
+.crop-circle-box:active { cursor: grabbing; }
+
+#crop-preview-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
 }
 
 /* Layout Shell & Sidebar Lateral */
@@ -162,6 +222,11 @@ body {
   gap: 10px;
 }
 
+.brand-text-col {
+  min-width: 0;
+  flex: 1;
+}
+
 .brand-title { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.02em; display: block; line-height: 1.2; }
 .brand-sub { font-size: 0.72rem; color: var(--muted); display: block; font-weight: 500; }
 
@@ -171,7 +236,7 @@ body {
   padding: 24px 18px;
 }
 
-/* Cabeçalho Moderno (Foco no Mês) */
+/* Cabeçalho Moderno (Foco na Aba + Mês) */
 .page-header-modern {
   display: flex;
   justify-content: space-between;
@@ -324,7 +389,7 @@ body {
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 label { font-size: 0.8125rem; font-weight: 600; color: var(--text); }
 
-input, select {
+input[type="text"], input[type="number"], input[type="date"], select {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
@@ -334,6 +399,12 @@ input, select {
   font: inherit;
   font-size: 0.875rem;
   color: var(--text);
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--blue);
+  cursor: pointer;
 }
 
 input:focus, select:focus { outline: 2px solid rgba(37, 99, 235, 0.25); border-color: var(--blue); background: var(--surface); }
@@ -452,12 +523,12 @@ input:focus, select:focus { outline: 2px solid rgba(37, 99, 235, 0.25); border-c
 .progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--purple)); border-radius: 999px; }
 .progress-fill.done { background: var(--green); }
 
-/* Modal Extrato */
+/* Modais */
 .modal {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -574,7 +645,7 @@ input:focus, select:focus { outline: 2px solid rgba(37, 99, 235, 0.25); border-c
   .sidebar {
     display: flex;
     flex-direction: column;
-    width: 260px;
+    width: 268px;
     flex-shrink: 0;
     background: var(--surface);
     border-right: 1px solid var(--border);
@@ -589,7 +660,7 @@ input:focus, select:focus { outline: 2px solid rgba(37, 99, 235, 0.25); border-c
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 0 6px 22px;
+    padding: 0 4px 20px;
     border-bottom: 1px solid var(--border);
   }
 
