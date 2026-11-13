@@ -2,12 +2,23 @@ const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyqH5o5vTCqu-OP_ZBQO
 const GEMINI_API_KEY = 'AQ.Ab8RN6I8_8WZNIBdU9yNjCOc7QmFVKocEofRV8faySkXB2EvMg';
 
 const SYSTEM_PROMPT =
-  'Você é o consultor financeiro de Yagho e Maria Eduarda. Você analisa o saldo livre deles (cerca de R$ 846 no cenário base) e o limite do cartão (R$ 500), além de usar a busca do Google para pesquisar preços reais de produtos (como aspiradores, móveis), comparar modelos e aconselhar quanto podem guardar para metas como viagem e carro sem comprometer as contas fixas.';
+  'Você é o consultor financeiro de Maria Eduarda e Yagho (o Pudicasal). Você analisa o saldo livre deles (cerca de R$ 846 no cenário base) e o limite do cartão (R$ 500), além de usar a busca do Google para pesquisar preços reais de produtos (como aspiradores, móveis), comparar modelos e aconselhar quanto podem guardar para metas como viagem e carro sem comprometer as contas fixas.';
 
 const STORAGE_KEY = 'nosso_caixa_v3';
 const HISTORY_KEY = 'nosso_caixa_undo_v3';
 const THEME_KEY = 'nosso_caixa_theme';
+const PHOTO_KEY = 'pudi_financas_photo';
 const MAX_UNDO = 200;
+
+const TAB_TITLES = {
+  'visao-geral': 'Visão Geral',
+  'entradas': 'Entradas',
+  'despesas': 'Despesas & Fixos',
+  'metas': 'Reservas & Metas',
+  'arquivos': 'Arquivos',
+};
+
+let activeTabId = 'visao-geral';
 
 const today = new Date();
 const defaultMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -65,14 +76,63 @@ if (!Array.isArray(state.goalCategories)) {
 
 let undoStack = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
 
+// Foto do Casal (Upload com redimensionamento automático)
+function applyCouplePhoto(dataUrl) {
+  const imgs = [document.getElementById('avatar-img-side'), document.getElementById('avatar-img-mobile')];
+  const fallbacks = [document.getElementById('avatar-fallback-side'), document.getElementById('avatar-fallback-mobile')];
+
+  if (dataUrl) {
+    imgs.forEach((img) => {
+      img.src = dataUrl;
+      img.classList.remove('hidden');
+    });
+    fallbacks.forEach((fb) => fb.classList.add('hidden'));
+  } else {
+    imgs.forEach((img) => img.classList.add('hidden'));
+    fallbacks.forEach((fb) => fb.classList.remove('hidden'));
+  }
+}
+
+applyCouplePhoto(localStorage.getItem(PHOTO_KEY));
+
+const photoInput = document.getElementById('couple-photo-input');
+document.getElementById('avatar-btn-side').addEventListener('click', () => photoInput.click());
+document.getElementById('avatar-btn-mobile').addEventListener('click', () => photoInput.click());
+
+photoInput.addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const size = 240;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const minSide = Math.min(img.width, img.height);
+      const sx = (img.width - minSide) / 2;
+      const sy = (img.height - minSide) / 2;
+      ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+      const compressed = canvas.toDataURL('image/jpeg', 0.85);
+      localStorage.setItem(PHOTO_KEY, compressed);
+      applyCouplePhoto(compressed);
+      showToast('Foto do Pudicasal atualizada!');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
 // Tema Claro / Escuro
 let currentTheme = localStorage.getItem(THEME_KEY) || 'light';
 function applyTheme(theme) {
   currentTheme = theme;
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem(THEME_KEY, theme);
-  const label = theme === 'dark' ? '☀ Modo Claro' : '◐ Modo Escuro';
-  document.getElementById('btn-theme-side').textContent = label;
+  document.getElementById('btn-theme-side').textContent = theme === 'dark' ? '☀ Modo Claro' : '◐ Modo Escuro';
 }
 applyTheme(currentTheme);
 
@@ -268,7 +328,13 @@ function renderAll() {
   updateUndoButtons();
   const b = computeBudget();
   const mLabel = monthLabel(state.currentMonthKey);
+
+  // Cabeçalho Dinâmico (Opção 3: Título da aba + Mês em destaque)
   document.getElementById('header-month-pill').textContent = mLabel;
+  document.getElementById('header-tab-title').textContent = TAB_TITLES[activeTabId] || 'Visão Geral';
+  document.getElementById('header-status-subtitle').textContent = b.pendingBills.length > 0
+    ? `${b.pendingBills.length} conta(s) pendente(s) · ${brl(b.freeBalance)} livre para gastar`
+    : `Tudo pago por aqui · ${brl(b.freeBalance)} livre para gastar`;
 
   // Visão Geral
   document.getElementById('ov-free').textContent = brl(b.freeBalance);
@@ -415,10 +481,12 @@ function renderAll() {
 
 // Navegação
 window.switchTab = function (tabId) {
+  activeTabId = tabId;
   document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
   document.querySelectorAll('[data-tab]').forEach((b) => b.classList.remove('active'));
   document.getElementById(`tab-${tabId}`).classList.add('active');
   document.querySelectorAll(`[data-tab="${tabId}"]`).forEach((b) => b.classList.add('active'));
+  document.getElementById('header-tab-title').textContent = TAB_TITLES[tabId] || 'Visão Geral';
 };
 
 document.querySelectorAll('[data-tab]').forEach((btn) => {
