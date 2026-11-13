@@ -66,10 +66,19 @@ function monthLabel(key) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function nextMonthKey(key) {
+function nextMonthKey(key, offset = 1) {
   const [y, m] = key.split('-').map(Number);
-  const d = new Date(y, m, 1);
+  const d = new Date(y, m - 1 + offset, 1);
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+}
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.add('hidden'), 3200);
 }
 
 function computeBudget() {
@@ -102,6 +111,44 @@ function computeBudget() {
   };
 }
 
+function buildForecast(monthsAhead = 6) {
+  const currentTotalFixed = state.fixedBills.reduce((s, b) => s + Number(b.amount), 0);
+  const results = [];
+
+  for (let offset = 1; offset <= monthsAhead; offset++) {
+    const key = nextMonthKey(state.currentMonthKey, offset);
+    let fixedSum = 0;
+    const endedThisMonth = [];
+
+    state.fixedBills.forEach((b) => {
+      if (b.kind === 'Fixo') {
+        fixedSum += Number(b.amount);
+      } else if (b.kind === 'Parcelado') {
+        const futureCurr = b.curr + offset;
+        if (futureCurr <= b.total) {
+          fixedSum += Number(b.amount);
+        } else if (futureCurr === b.total + 1) {
+          endedThisMonth.push(b.name);
+        }
+      }
+    });
+
+    state.dailyExpenses.forEach((d) => {
+      if (d.installments > 1 && d.curr + offset <= d.installments) {
+        fixedSum += Number(d.monthlyAmount);
+      }
+    });
+
+    results.push({
+      label: monthLabel(key),
+      fixedSum,
+      savingsComparedToNow: Math.max(0, currentTotalFixed - fixedSum),
+      endedThisMonth,
+    });
+  }
+  return results;
+}
+
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   if (SHEETS_URL && SHEETS_URL !== 'COLOQUE_AQUI_SEU_WEBHOOK') {
@@ -113,8 +160,9 @@ function saveState() {
   }
 }
 
-async function loadFromSheets() {
+async function loadFromSheets(manual = false) {
   if (!SHEETS_URL || SHEETS_URL === 'COLOQUE_AQUI_SEU_WEBHOOK') return;
+  if (manual) showToast('Sincronizando com a planilha...');
   try {
     const res = await fetch(SHEETS_URL);
     const data = await res.json();
@@ -122,22 +170,27 @@ async function loadFromSheets() {
       state = { ...state, ...data };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       renderAll();
+      if (manual) showToast('Planilha sincronizada com sucesso!');
+    } else if (manual) {
+      saveState();
+      showToast('Dados enviados para a planilha!');
     }
   } catch (err) {
     console.error('Sheets GET:', err);
+    if (manual) showToast('Erro ao conectar com a planilha.');
   }
 }
 
 function renderAll() {
   const b = computeBudget();
   const mLabel = monthLabel(state.currentMonthKey);
-  document.getElementById('active-month-label').textContent = `Mês ativo: ${mLabel} · Orçamento 100% unificado`;
+  document.getElementById('main-page-title').textContent = `FINANÇAS ${mLabel}`;
 
   // Visão Geral
   document.getElementById('ov-free').textContent = brl(b.freeBalance);
-  document.getElementById('ov-income').textContent = `+ ${brl(b.totalIncome)}`;
+  document.getElementById('ov-income').textContent = brl(b.totalIncome);
   document.getElementById('ov-income-note').textContent = b.commissionActive ? 'Comissão F&F ativa (Ajuda zerada)' : 'Salários base + Ajuda F&F';
-  document.getElementById('ov-spent').textContent = `− ${brl(b.totalSpent)}`;
+  document.getElementById('ov-spent').textContent = brl(b.totalSpent);
   document.getElementById('ov-card').textContent = brl(b.cardLimitAvailable);
   document.getElementById('ov-card-note').textContent = `De ${brl(state.cardLimitTotal)}`;
 
@@ -152,18 +205,19 @@ function renderAll() {
     alertEl.classList.add('hidden');
   }
 
-  document.getElementById('ov-fixed-preview').innerHTML = state.fixedBills.slice(0, 6).map((item) => `
-    <div class="list-row">
-      <div>
-        <div class="row-title">${item.name}</div>
-        <div class="row-sub">${item.kind}${item.kind === 'Parcelado' ? ` · ${pad2(item.curr)}/${pad2(item.total)}` : ''} · ${item.status}</div>
-      </div>
-      <strong class="num">${brl(item.amount)}</strong>
+  // Projeção Próximos Meses
+  const forecast = buildForecast(6);
+  document.getElementById('ov-forecast-grid').innerHTML = forecast.map((f) => `
+    <div class="forecast-box">
+      <span class="forecast-month">${f.label}</span>
+      <strong class="forecast-val num">${brl(f.fixedSum)}</strong>
+      ${f.savingsComparedToNow > 0 ? `<span class="forecast-diff num">− ${brl(f.savingsComparedToNow)} de parcelas</span>` : '<span class="card-meta">Mesmo patamar atual</span>'}
+      ${f.endedThisMonth.length ? `<div class="forecast-ended">Acaba: <strong>${f.endedThisMonth.join(', ')}</strong></div>` : ''}
     </div>
   `).join('');
 
   // Entradas
-  document.getElementById('inc-total').textContent = `+ ${brl(b.totalIncome)}`;
+  document.getElementById('inc-total').textContent = brl(b.totalIncome);
   document.getElementById('inc-rule-banner').textContent = b.commissionActive
     ? 'Regra F&F ativa: Ajuda de Custo (R$ 500,00) zerada automaticamente pela Comissão F&F.'
     : 'Regra F&F padrão: Salário Base (R$ 2.000,00) + Ajuda de Custo (R$ 500,00).';
@@ -175,7 +229,7 @@ function renderAll() {
         <div class="row-sub">${inc.category}${inc.suppressed ? ' · Zerada pela Comissão F&F' : ''}</div>
       </div>
       <div class="btn-row">
-        <strong class="num ${inc.suppressed ? 'strike' : 'text-green'}">${inc.suppressed ? brl(0) : '+ ' + brl(inc.amount)}</strong>
+        <strong class="num ${inc.suppressed ? 'strike' : 'text-green'}">${inc.suppressed ? brl(0) : brl(inc.amount)}</strong>
         <button type="button" class="btn-delete" onclick="deleteIncome('${inc.id}')">✕</button>
       </div>
     </div>
@@ -183,7 +237,7 @@ function renderAll() {
 
   // Despesas & Fixos
   document.getElementById('exp-free').textContent = brl(b.freeBalance);
-  document.getElementById('exp-total').textContent = `− ${brl(b.totalSpent)}`;
+  document.getElementById('exp-total').textContent = brl(b.totalSpent);
   document.getElementById('exp-card').textContent = brl(b.cardLimitAvailable);
   document.getElementById('exp-card-note').textContent = `Limite total: ${brl(state.cardLimitTotal)} · Usado: ${brl(b.totalDailyCard)}`;
   document.getElementById('fixed-total-label').textContent = `${state.fixedBills.length} itens · Total ${brl(b.totalFixed)}`;
@@ -211,7 +265,7 @@ function renderAll() {
           <div class="row-sub num">${d.paymentMethod} · ${pad2(d.curr)}/${pad2(d.installments)} · ${d.date.split('-').reverse().join('/')}</div>
         </div>
         <div class="btn-row">
-          <strong class="num text-red">− ${brl(d.monthlyAmount)}</strong>
+          <strong class="num text-red">${brl(d.monthlyAmount)}</strong>
           <button type="button" class="status-btn ${d.status === 'Pago' ? 'pago' : 'pendente'}" onclick="toggleDailyStatus('${d.id}')">${d.status}</button>
           <button type="button" class="btn-delete" onclick="deleteDaily('${d.id}')">✕</button>
         </div>
@@ -288,6 +342,7 @@ document.getElementById('income-form').addEventListener('submit', (e) => {
   });
   saveState();
   renderAll();
+  showToast('Entrada registrada!');
   e.target.reset();
   document.getElementById('inc-date').value = today.toISOString().slice(0, 10);
 });
@@ -358,6 +413,7 @@ document.getElementById('daily-form').addEventListener('submit', (e) => {
   });
   saveState();
   renderAll();
+  showToast('Gasto lançado!');
   e.target.reset();
   document.getElementById('daily-date').value = today.toISOString().slice(0, 10);
   updateDailyPreview();
@@ -388,6 +444,7 @@ document.getElementById('goal-form').addEventListener('submit', (e) => {
   });
   saveState();
   renderAll();
+  showToast('Meta criada!');
   e.target.reset();
 });
 
@@ -395,6 +452,7 @@ window.depositGoal = (id, amount) => {
   state.goals = state.goals.map((g) => g.id === id ? { ...g, savedAmount: Math.min(g.targetAmount, g.savedAmount + amount) } : g);
   saveState();
   renderAll();
+  showToast('Aporte registrado na meta!');
 };
 
 window.deleteGoal = (id) => {
@@ -448,6 +506,7 @@ document.getElementById('btn-rollover').addEventListener('click', () => {
 
   saveState();
   renderAll();
+  showToast('Mês virado e arquivado com sucesso!');
 });
 
 // Extrato do Mês
@@ -469,7 +528,8 @@ document.getElementById('btn-close-statement').addEventListener('click', () => {
   document.getElementById('statement-modal').classList.add('hidden');
 });
 
-document.getElementById('btn-sync-sheets').addEventListener('click', loadFromSheets);
+document.getElementById('btn-sync-sheets').addEventListener('click', () => loadFromSheets(true));
+document.getElementById('btn-sync-mobile').addEventListener('click', () => loadFromSheets(true));
 
 // Balão Flutuante Conselheiro IA (Gemini + Google Search + Contexto Oculto)
 const chatDrawer = document.getElementById('chat-drawer');
@@ -521,7 +581,7 @@ document.getElementById('chat-form').addEventListener('submit', async (e) => {
   ].join('\n');
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -531,7 +591,12 @@ document.getElementById('chat-form').addEventListener('submit', async (e) => {
       }),
     });
     const data = await res.json();
-    const reply = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || 'Erro ao consultar o Gemini.';
+    if (!res.ok) {
+      const errMsg = data?.error?.message || 'Chave de API inválida.';
+      appendChat('model', `Aviso da API Gemini: ${errMsg}\n\nDica: Gere uma chave começando com "AIza..." no Google AI Studio e cole na linha 2 do script.js.`);
+      return;
+    }
+    const reply = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || 'Sem resposta do Gemini.';
     const chunks = data?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     const sources = chunks.filter((c) => c.web?.uri).map((c) => c.web);
     appendChat('model', reply, sources);
@@ -543,4 +608,4 @@ document.getElementById('chat-form').addEventListener('submit', async (e) => {
 });
 
 renderAll();
-loadFromSheets();
+loadFromSheets(false);
