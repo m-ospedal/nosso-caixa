@@ -1,8 +1,4 @@
 const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyqH5o5vTCqu-OP_ZBQOJb7jhaCRMQxiDGxqM-W9HXMW6RVPBj6xfkHBh5o7yZktNuW/exec';
-const GEMINI_API_KEY = 'AQ.Ab8RN6I8_8WZNIBdU9yNjCOc7QmFVKocEofRV8faySkXB2EvMg';
-
-const SYSTEM_PROMPT =
-  'Você é o consultor financeiro de Maria Eduarda e Yagho (o Pudicasal). Você analisa o saldo livre deles (cerca de R$ 846 no cenário base) e o limite do cartão (R$ 500), além de usar a busca do Google para pesquisar preços reais de produtos (como aspiradores, móveis), comparar modelos e aconselhar quanto podem guardar para metas como viagem e carro sem comprometer as contas fixas.';
 
 const STORAGE_KEY = 'nosso_caixa_v3';
 const HISTORY_KEY = 'nosso_caixa_undo_v3';
@@ -893,36 +889,130 @@ document.getElementById('btn-close-statement').addEventListener('click', () => {
 document.getElementById('btn-sync-sheets').addEventListener('click', () => loadFromSheets(true));
 document.getElementById('btn-sync-mobile').addEventListener('click', () => loadFromSheets(true));
 
-// Balão Flutuante Conselheiro IA
+// =========================================================================
+// CONSULTOR FINANCEIRO LOCAL (100% OFFLINE — SEM CHAVE DE API EXTERNA)
+// =========================================================================
 const chatDrawer = document.getElementById('chat-drawer');
 const chatMessages = document.getElementById('chat-messages');
 
 document.getElementById('chat-fab').addEventListener('click', () => chatDrawer.classList.remove('hidden'));
 document.getElementById('chat-close').addEventListener('click', () => chatDrawer.classList.add('hidden'));
 
-function appendChat(role, text, sources = []) {
+function appendChat(role, text) {
   const div = document.createElement('div');
   div.className = `chat-msg ${role}`;
   div.textContent = text;
-  if (sources.length) {
-    const src = document.createElement('div');
-    src.className = 'chat-sources';
-    src.innerHTML = '<strong>Fontes:</strong>';
-    sources.slice(0, 4).forEach((s) => {
-      const a = document.createElement('a');
-      a.href = s.uri;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.textContent = s.title || s.uri;
-      src.appendChild(a);
-    });
-    div.appendChild(src);
-  }
   chatMessages.appendChild(div);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-document.getElementById('chat-form').addEventListener('submit', async (e) => {
+function generateLocalAdvisorReply(rawQuestion) {
+  const q = rawQuestion.toLowerCase();
+  const b = computeBudget();
+  const forecast = buildForecast(6);
+
+  // Extrai possível valor numérico e parcelas da pergunta (ex: "aspirador 450 em 3x")
+  const parcMatch = q.match(/(\d+)\s*x\b/);
+  const installments = parcMatch ? Math.max(1, Math.min(24, Number(parcMatch[1]))) : 1;
+
+  const cleanedForPrice = q.replace(/(\d+)\s*x\b/g, '');
+  const priceMatch = cleanedForPrice.match(/(\d+(?:[.,]\d{1,2})?)/);
+  const price = priceMatch ? Number(priceMatch[1].replace(',', '.')) : null;
+
+  // Caso 1: Usuário informou um valor para simular compra (ex: "aspirador 450", "comprar algo de 300 em 3x")
+  if (price !== null && price > 0) {
+    const monthlyPart = price / installments;
+    const fitsCard = monthlyPart <= b.cardLimitAvailable;
+    const fitsFree = monthlyPart <= b.freeBalance;
+    const nextRelief = forecast.find((f) => f.savingsComparedToNow > 0);
+
+    const lines = [
+      `Simulação para ${brl(price)} (${installments > 1 ? `${installments}x de ${brl(monthlyPart)}/mês` : 'à vista'}):`,
+      '',
+      fitsCard
+        ? `• No Cartão de Crédito: Cabe! Vocês têm ${brl(b.cardLimitAvailable)} livres no cartão e sobraria ${brl(b.cardLimitAvailable - monthlyPart)} de limite.`
+        : `• No Cartão de Crédito: Estoura o limite atual de ${brl(b.cardLimitAvailable)} livres (faltam ${brl(monthlyPart - b.cardLimitAvailable)}).`,
+      fitsFree
+        ? `• No Pix / Débito (Saldo Livre): Cabe! De ${brl(b.freeBalance)} livres, ainda restariam ${brl(b.freeBalance - monthlyPart)} no mês.`
+        : `• No Pix / Débito (Saldo Livre): Compromete todo o saldo livre de ${brl(b.freeBalance)}.`,
+    ];
+
+    if (nextRelief) {
+      lines.push(
+        '',
+        `Dica de timing: Em ${nextRelief.label}, acabam parcelas (${nextRelief.endedThisMonth.join(', ')}) e o orçamento de vocês ganha uma folga extra de ${brl(nextRelief.savingsComparedToNow)}/mês.`
+      );
+    }
+    return lines.join('\n');
+  }
+
+  // Caso 2: Pergunta sobre compra sem informar preço (ex: "quero comprar um aspirador")
+  if (q.includes('comprar') || q.includes('aspirador') || q.includes('vale a pena') || q.includes('posso gastar') || q.includes('quanto posso')) {
+    const nextRelief = forecast.find((f) => f.savingsComparedToNow > 0);
+    const lines = [
+      `Para compras hoje em ${monthLabel(state.currentMonthKey)}, vocês têm:`,
+      `• Limite no Cartão: ${brl(b.cardLimitAvailable)} disponíveis (parcela máxima recomendada no cartão: ${brl(b.cardLimitAvailable)}/mês).`,
+      `• Saldo Livre (Pix/Débito): ${brl(b.freeBalance)} após pagar todos os fixos.`,
+    ];
+    if (nextRelief) {
+      lines.push(`• Folga próxima: Em ${nextRelief.label} liberam +${brl(nextRelief.savingsComparedToNow)}/mês (${nextRelief.endedThisMonth.join(', ')}).`);
+    }
+    lines.push('', 'Me mande o valor e as parcelas (ex: "aspirador 480 em 4x") que eu simulo o impacto exato para vocês!');
+    return lines.join('\n');
+  }
+
+  // Caso 3: Pergunta sobre metas / reservas / viagem / carro
+  if (q.includes('meta') || q.includes('reserva') || q.includes('guardar') || q.includes('viagem') || q.includes('carro')) {
+    if (state.goals.length === 0) {
+      const suggestedSave = Math.max(0, Math.round(b.freeBalance * 0.4));
+      return [
+        'Vocês ainda não cadastraram metas na aba "Reservas & Metas".',
+        `Com o saldo livre atual de ${brl(b.freeBalance)}, guardar cerca de ${brl(suggestedSave)}/mês deixa uma margem segura para imprevistos do Pudicasal.`,
+      ].join('\n');
+    }
+    const totalMonthlyGoals = state.goals.reduce((s, g) => s + Number(g.monthlyContribution), 0);
+    const goalsSummary = state.goals.map((g) => {
+      const rem = Math.max(0, g.targetAmount - g.savedAmount);
+      const months = g.monthlyContribution > 0 ? Math.ceil(rem / g.monthlyContribution) : 0;
+      return `• ${g.title}: ${brl(g.savedAmount)} de ${brl(g.targetAmount)} (${rem === 0 ? 'Concluída!' : `faltam ${months} mes(es) guardando ${brl(g.monthlyContribution)}/mês`})`;
+    });
+    return [
+      `Acompanhamento das Metas (${brl(totalMonthlyGoals)}/mês no total):`,
+      ...goalsSummary,
+      '',
+      totalMonthlyGoals <= b.freeBalance
+        ? `Os aportes cabem dentro do saldo livre de ${brl(b.freeBalance)} (sobram ${brl(b.freeBalance - totalMonthlyGoals)}).`
+        : `Atenção: Os aportes somam ${brl(totalMonthlyGoals)}, acima do saldo livre atual de ${brl(b.freeBalance)}.`,
+    ].join('\n');
+  }
+
+  // Caso 4: Pergunta sobre parcelas acabando / próximos meses / folga
+  if (q.includes('parcela') || q.includes('proximo') || q.includes('próximo') || q.includes('folga') || q.includes('acaba')) {
+    const lines = ['Projeção dos gastos fixos nos próximos meses:'];
+    forecast.slice(0, 4).forEach((f) => {
+      const extra = f.endedThisMonth.length ? ` (Acaba: ${f.endedThisMonth.join(', ')})` : '';
+      lines.push(`• ${f.label}: ${brl(f.fixedSum)}${f.savingsComparedToNow > 0 ? ` — economia de ${brl(f.savingsComparedToNow)}` : ''}${extra}`);
+    });
+    return lines.join('\n');
+  }
+
+  // Resposta padrão: Diagnóstico geral inteligente + exemplos de comandos
+  const nextRelief = forecast.find((f) => f.savingsComparedToNow > 0);
+  return [
+    `Resumo rápido do Pudicasal (${monthLabel(state.currentMonthKey)}):`,
+    `• Entradas: ${brl(b.totalIncome)} (Maria Eduarda: ${brl(b.totalMaria)} | Yagho: ${brl(b.totalYagho)})`,
+    `• Gastos totais: ${brl(b.totalSpent)} (${b.pendingBills.length} conta(s) pendente(s))`,
+    `• Livre para gastar: ${brl(b.freeBalance)} | Cartão livre: ${brl(b.cardLimitAvailable)}`,
+    nextRelief ? `• Próximo alívio: ${nextRelief.label} (+${brl(nextRelief.savingsComparedToNow)}/mês ao encerrar ${nextRelief.endedThisMonth.join(', ')})` : '',
+    '',
+    'Você pode me perguntar coisas como:',
+    '— "Posso comprar um aspirador de 450 em 3x?"',
+    '— "Quando acaba nossas parcelas?"',
+    '— "Como estão nossas metas?"',
+  ].filter(Boolean).join('\n');
+}
+
+document.getElementById('chat-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const input = document.getElementById('chat-input');
   const question = input.value.trim();
@@ -930,43 +1020,8 @@ document.getElementById('chat-form').addEventListener('submit', async (e) => {
 
   appendChat('user', question);
   input.value = '';
-  const submit = document.getElementById('chat-submit');
-  submit.disabled = true;
-
-  const b = computeBudget();
-  const hiddenContext = [
-    `[CONTEXTO OCULTO - ${monthLabel(state.currentMonthKey)}]`,
-    `Saldo Livre: ${brl(b.freeBalance)}`,
-    `Limite Disponível do Cartão: ${brl(b.cardLimitAvailable)} de ${brl(state.cardLimitTotal)}`,
-    `Gastos Fixos (${brl(b.totalFixed)}): ${state.fixedBills.map((f) => `${f.name} ${brl(f.amount)} (${f.status})`).join('; ')}`,
-    `Metas: ${state.goals.length ? state.goals.map((g) => `${g.title}: ${brl(g.savedAmount)}/${brl(g.targetAmount)} (${brl(g.monthlyContribution)}/mês)`).join('; ') : 'Nenhuma cadastrada'}`,
-  ].join('\n');
-
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: 'user', parts: [{ text: `${hiddenContext}\n\nPergunta: ${question}` }] }],
-        tools: [{ googleSearch: {} }],
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      const errMsg = data?.error?.message || 'Chave de API inválida.';
-      appendChat('model', `Aviso da API Gemini: ${errMsg}\n\nDica: Gere uma chave começando com "AIza..." no Google AI Studio e cole na linha 2 do script.js.`);
-      return;
-    }
-    const reply = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || 'Sem resposta do Gemini.';
-    const chunks = data?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    const sources = chunks.filter((c) => c.web?.uri).map((c) => c.web);
-    appendChat('model', reply, sources);
-  } catch {
-    appendChat('model', 'Não foi possível conectar ao Conselheiro IA.');
-  } finally {
-    submit.disabled = false;
-  }
+  const reply = generateLocalAdvisorReply(question);
+  appendChat('model', reply);
 });
 
 renderAll();
