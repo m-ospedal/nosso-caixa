@@ -74,21 +74,18 @@ body {
 .mt-20 { margin-top: 20px; }
 .mt-24 { margin-top: 24px; }
 
-/* Avatar / Bolinha do Casal */
-.avatar-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
+/* Avatar / Bolinha do Casal & Menu Popover */
+.avatar-menu-anchor {
+  position: relative;
   flex-shrink: 0;
 }
 
 .avatar-trigger {
   position: relative;
-  width: 54px;
-  height: 54px;
-  min-width: 54px;
-  min-height: 54px;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
   border-radius: 50% !important;
   border: 2px solid var(--blue);
   padding: 2px;
@@ -97,11 +94,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
   transition: transform 0.15s ease;
 }
 
-.avatar-trigger:hover { transform: scale(1.05); }
+.avatar-trigger:hover { transform: scale(1.04); }
 
 .avatar-sm {
   width: 40px;
@@ -131,36 +129,57 @@ body {
   justify-content: center;
 }
 
-.avatar-badge {
+.avatar-hover-overlay {
   position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 18px;
-  height: 18px;
+  inset: 2px;
   border-radius: 50%;
-  background: var(--blue);
+  background: rgba(15, 23, 42, 0.55);
   color: #fff;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.85rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--surface);
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-.avatar-adjust-btn {
+.avatar-trigger:hover .avatar-hover-overlay { opacity: 1; }
+
+.avatar-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 50;
+  min-width: 196px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.popover-item {
+  width: 100%;
+  padding: 9px 12px;
   border: none;
-  background: var(--blue-soft);
-  color: var(--blue);
+  border-radius: 10px;
+  background: transparent;
   font: inherit;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
   cursor: pointer;
 }
 
-.avatar-adjust-btn:hover { background: var(--blue); color: #fff; }
+.popover-item:hover {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
 
 /* Modal de Recorte / Centralização na Bolinha */
 .crop-preview-area {
