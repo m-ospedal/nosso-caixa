@@ -16,16 +16,19 @@
     <!-- SIDEBAR LATERAL (Desktop) -->
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <div class="avatar-wrapper">
-          <button type="button" id="avatar-btn-side" class="avatar-trigger" title="Clique para escolher uma foto">
+        <div class="avatar-menu-anchor">
+          <button type="button" id="avatar-btn-side" class="avatar-trigger" title="Clique para ajustar ou trocar a foto">
             <img id="avatar-img-side" class="avatar-img hidden" alt="Foto Maria Eduarda & Yagho" />
             <span id="avatar-fallback-side" class="avatar-fallback">M&amp;Y</span>
-            <span class="avatar-badge">+</span>
+            <span class="avatar-hover-overlay">✎</span>
           </button>
-          <button type="button" id="avatar-adjust-side" class="avatar-adjust-btn hidden" title="Centralizar / Zoom na foto">
-            Ajustar
-          </button>
+
+          <div id="avatar-popover-side" class="avatar-popover hidden" role="menu">
+            <button type="button" id="opt-adjust-side" class="popover-item">Ajustar posição / zoom</button>
+            <button type="button" id="opt-change-side" class="popover-item">Trocar foto</button>
+          </div>
         </div>
+
         <div class="brand-text-col">
           <span class="brand-title">Pudi Finanças</span>
           <span class="brand-sub">Maria Eduarda &amp; Yagho</span>
@@ -67,10 +70,18 @@
     <div class="main-wrapper">
       <header class="mobile-topbar">
         <div class="mobile-brand-group">
-          <button type="button" id="avatar-btn-mobile" class="avatar-trigger avatar-sm" title="Trocar ou ajustar foto">
-            <img id="avatar-img-mobile" class="avatar-img hidden" alt="Foto do casal" />
-            <span id="avatar-fallback-mobile" class="avatar-fallback">M&amp;Y</span>
-          </button>
+          <div class="avatar-menu-anchor">
+            <button type="button" id="avatar-btn-mobile" class="avatar-trigger avatar-sm" title="Foto do casal">
+              <img id="avatar-img-mobile" class="avatar-img hidden" alt="Foto do casal" />
+              <span id="avatar-fallback-mobile" class="avatar-fallback">M&amp;Y</span>
+            </button>
+
+            <div id="avatar-popover-mobile" class="avatar-popover hidden" role="menu">
+              <button type="button" id="opt-adjust-mobile" class="popover-item">Ajustar posição / zoom</button>
+              <button type="button" id="opt-change-mobile" class="popover-item">Trocar foto</button>
+            </div>
+          </div>
+
           <div>
             <span class="brand-title">Pudi Finanças</span>
             <span class="brand-sub">Maria Eduarda &amp; Yagho</span>
