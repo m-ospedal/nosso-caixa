@@ -11,7 +11,7 @@ const TAB_TITLES = {
   'visao-geral': 'Visão Geral',
   'entradas': 'Entradas',
   'despesas': 'Despesas & Fixos',
-  'metas': 'Reservas & Metas',
+  'metas': 'Cofre, Metas & Vontades',
   'arquivos': 'Arquivos',
 };
 
@@ -85,18 +85,22 @@ function createInitialState() {
   return {
     currentMonthKey: defaultMonthKey,
     cardLimitTotal: 500.00,
+    vaultSaved: 0,
     incomes: initialIncomes(defaultMonthKey),
     fixedBills: initialFixedBills(),
     dailyExpenses: initialDailyExpenses(defaultMonthKey),
     goals: [],
-    goalCategories: ['Viagem', 'Carro', 'Móveis', 'Reserva'],
+    goalCategories: ['Viagem', 'Carro', 'Casa', 'Reserva'],
     archives: [],
   };
 }
 
 let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || createInitialState();
 if (!Array.isArray(state.goalCategories)) {
-  state.goalCategories = ['Viagem', 'Carro', 'Móveis', 'Reserva'];
+  state.goalCategories = ['Viagem', 'Carro', 'Casa', 'Reserva'];
+}
+if (typeof state.vaultSaved !== 'number') {
+  state.vaultSaved = 0;
 }
 
 let undoStack = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
@@ -410,7 +414,6 @@ function computeBudget() {
     else totalDailyPix += Number(d.monthlyAmount);
   });
 
-  // Gastos no Cartão entram só na fatura do mês seguinte (não duplicam neste mês)
   const totalSpent = totalFixed + totalDailyPix;
   const freeBalance = totalIncome - totalFixed - totalDailyPix;
   const cardLimitAvailable = Number(state.cardLimitTotal) - totalDailyCard;
@@ -434,7 +437,6 @@ function buildForecast(monthsAhead = 6) {
     const endedThisMonth = [];
 
     state.fixedBills.forEach((b) => {
-      // A fatura paga neste mês é substituída pelos gastos no cartão deste mês
       if (b.isCardBill || b.name.toLowerCase().includes('fatura atual')) {
         return;
       }
@@ -450,7 +452,6 @@ function buildForecast(monthsAhead = 6) {
       }
     });
 
-    // Compras no Cartão deste mês vencem a partir do mês seguinte (offset 1 = parcela atual)
     state.dailyExpenses.forEach((d) => {
       if (d.paymentMethod === 'Cartão de Crédito') {
         const futureCardCurr = d.curr + (offset - 1);
@@ -611,37 +612,75 @@ function renderAll() {
       </div>
     `).join('');
 
-  // Categorias e Metas
+  // Cofre, Metas e Vontades
+  document.getElementById('vault-total').textContent = brl(state.vaultSaved);
+
   const catSelect = document.getElementById('goal-cat');
   const currentCat = catSelect.value;
   catSelect.innerHTML = state.goalCategories.map((c) => `<option value="${c}">${c}</option>`).join('');
   if (state.goalCategories.includes(currentCat)) catSelect.value = currentCat;
 
   document.getElementById('goals-list').innerHTML = state.goals.length === 0
-    ? '<article class="card"><p class="card-meta">Nenhuma meta cadastrada.</p></article>'
+    ? '<article class="card"><p class="card-meta">Nenhuma meta ou vontade adicionada ainda.</p></article>'
     : state.goals.map((g) => {
-      const rem = Math.max(0, g.targetAmount - g.savedAmount);
-      const pct = g.targetAmount > 0 ? Math.min(100, Math.round((g.savedAmount / g.targetAmount) * 100)) : 0;
-      const months = g.monthlyContribution > 0 ? Math.ceil(rem / g.monthlyContribution) : 0;
+      const isVontade = g.kind === 'vontade';
+      const hasTarget = Number(g.targetAmount) > 0;
+      const saved = Number(g.savedAmount || 0);
+      const target = Number(g.targetAmount || 0);
+      const monthly = Number(g.monthlyContribution || 0);
+
+      if (isVontade) {
+        return `
+          <article class="card">
+            <div class="card-head">
+              <div>
+                <span class="kind-pill vontade">Vontade · ${g.category}</span>
+                <h2>${g.title}</h2>
+                ${hasTarget ? `<strong class="num text-blue" style="display:block; margin-top:4px; font-size:1.1rem;">${brl(target)}</strong>` : '<span class="card-meta">Sem valor definido</span>'}
+              </div>
+              <div class="btn-row">
+                <button type="button" class="btn-outline" onclick="promoteWishToGoal('${g.id}')">Transformar em Meta</button>
+                <button type="button" class="btn-delete" onclick="deleteGoal('${g.id}')">✕</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }
+
+      const rem = hasTarget ? Math.max(0, target - saved) : 0;
+      const pct = hasTarget ? Math.min(100, Math.round((saved / target) * 100)) : 0;
+      const months = (hasTarget && monthly > 0) ? Math.ceil(rem / monthly) : 0;
       const est = new Date();
       est.setMonth(est.getMonth() + months);
-      const dateStr = rem === 0 ? 'Meta alcançada' : est.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      const dateStr = rem === 0 ? 'Meta alcançada!' : est.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
       return `
         <article class="card">
           <div class="card-head">
             <div>
+              <span class="kind-pill meta">Meta · ${g.category}</span>
               <h2>${g.title}</h2>
-              <span class="card-meta num">${g.category} · ${brl(g.savedAmount)} de ${brl(g.targetAmount)} (${brl(g.monthlyContribution)}/mês)</span>
+              <span class="card-meta num">
+                Guardado: <strong class="text-green">${brl(saved)}</strong>${hasTarget ? ` de ${brl(target)}` : ''}${monthly > 0 ? ` · ${brl(monthly)}/mês` : ''}
+              </span>
             </div>
             <button type="button" class="btn-delete" onclick="deleteGoal('${g.id}')">✕</button>
           </div>
-          <div class="card-head-inline mt-12" style="font-size:0.75rem;">
-            <span>${rem === 0 ? 'Concluída' : 'Faltam ' + brl(rem)}</span>
-            <strong class="num">${pct}%</strong>
+
+          ${hasTarget ? `
+            <div class="card-head-inline mt-12" style="font-size:0.75rem;">
+              <span>${rem === 0 ? 'Concluída' : 'Faltam ' + brl(rem)}</span>
+              <strong class="num">${pct}%</strong>
+            </div>
+            <div class="progress-track"><div class="progress-fill ${pct === 100 ? 'done' : ''}" style="width:${pct}%"></div></div>
+          ` : ''}
+
+          ${(hasTarget && monthly > 0) ? `<p class="card-meta mt-8">Previsão: <strong class="num">${months} mes(es)</strong> · ${dateStr}</p>` : ''}
+
+          <div class="btn-row mt-12">
+            <button type="button" class="btn-outline" onclick="depositGoal('${g.id}', ${monthly})">+ Colocar dinheiro</button>
+            ${saved > 0 ? `<button type="button" class="btn-outline" onclick="withdrawGoal('${g.id}')">Retirar</button>` : ''}
           </div>
-          <div class="progress-track"><div class="progress-fill ${pct === 100 ? 'done' : ''}" style="width:${pct}%"></div></div>
-          <p class="card-meta mt-8">Previsão: <strong class="num">${months} mes(es)</strong> · ${dateStr}</p>
-          ${rem > 0 ? `<button type="button" class="btn-outline mt-12" onclick="depositGoal('${g.id}', ${g.monthlyContribution})">+ Guardar aporte (${brl(g.monthlyContribution)})</button>` : ''}
         </article>
       `;
     }).join('');
@@ -658,7 +697,7 @@ function renderAll() {
     `).join('');
 
   document.getElementById('chat-context-preview').textContent =
-    `Saldo livre ${brl(b.freeBalance)} · Cartão ${brl(b.cardLimitAvailable)}`;
+    `Livre ${brl(b.freeBalance)} · Cofre ${brl(state.vaultSaved)} · Cartão ${brl(b.cardLimitAvailable)}`;
 }
 
 // Navegação
@@ -805,7 +844,47 @@ window.deleteDaily = (id) => {
   renderAll();
 };
 
-// Metas e Novas Categorias
+// =========================================================================
+// COFRE DO CASAL + METAS & VONTADES (CAMPOS OPCIONAIS)
+// =========================================================================
+document.getElementById('btn-vault-add').addEventListener('click', () => {
+  const val = prompt('Quanto vocês vão guardar no Cofre agora? (R$)');
+  const num = val ? Number(val.replace(',', '.')) : 0;
+  if (num > 0 && !Number.isNaN(num)) {
+    pushUndo();
+    state.vaultSaved = Math.round((state.vaultSaved + num) * 100) / 100;
+    saveState();
+    renderAll();
+    showToast(`${brl(num)} guardados no Cofre!`);
+  }
+});
+
+document.getElementById('btn-vault-sub').addEventListener('click', () => {
+  if (state.vaultSaved <= 0) {
+    showToast('O Cofre está zerado no momento.');
+    return;
+  }
+  const val = prompt(`Quanto desejam retirar do Cofre? (Saldo: ${brl(state.vaultSaved)})`);
+  const num = val ? Number(val.replace(',', '.')) : 0;
+  if (num > 0 && !Number.isNaN(num)) {
+    pushUndo();
+    state.vaultSaved = Math.max(0, Math.round((state.vaultSaved - num) * 100) / 100);
+    saveState();
+    renderAll();
+    showToast(`${brl(num)} retirados do Cofre.`);
+  }
+});
+
+const goalKindSelect = document.getElementById('goal-kind');
+function updateGoalFormFields() {
+  const isVontade = goalKindSelect.value === 'vontade';
+  document.getElementById('goal-monthly-wrap').classList.toggle('hidden', isVontade);
+  document.getElementById('goal-saved-wrap').classList.toggle('hidden', isVontade);
+  document.getElementById('goal-submit-btn').textContent = isVontade ? 'Salvar Vontade' : 'Salvar Meta';
+}
+goalKindSelect.addEventListener('change', updateGoalFormFields);
+updateGoalFormFields();
+
 document.getElementById('btn-add-goal-cat').addEventListener('click', () => {
   const nova = prompt('Nome da nova categoria (ex.: Emergência, Reforma, Eletrônicos):');
   if (nova && nova.trim()) {
@@ -824,26 +903,61 @@ document.getElementById('btn-add-goal-cat').addEventListener('click', () => {
 document.getElementById('goal-form').addEventListener('submit', (e) => {
   e.preventDefault();
   pushUndo();
+  const kind = document.getElementById('goal-kind').value;
   state.goals.unshift({
     id: crypto.randomUUID(),
+    kind,
     category: document.getElementById('goal-cat').value,
     title: document.getElementById('goal-title').value.trim(),
-    targetAmount: Number(document.getElementById('goal-target').value),
-    monthlyContribution: Number(document.getElementById('goal-monthly').value),
-    savedAmount: Number(document.getElementById('goal-saved').value || 0),
+    targetAmount: Number(document.getElementById('goal-target').value || 0),
+    monthlyContribution: kind === 'vontade' ? 0 : Number(document.getElementById('goal-monthly').value || 0),
+    savedAmount: kind === 'vontade' ? 0 : Number(document.getElementById('goal-saved').value || 0),
   });
   saveState();
   renderAll();
-  showToast('Meta criada!');
+  showToast(kind === 'vontade' ? 'Vontade adicionada à lista!' : 'Meta criada!');
   e.target.reset();
+  updateGoalFormFields();
 });
 
-window.depositGoal = (id, amount) => {
+window.promoteWishToGoal = (id) => {
   pushUndo();
-  state.goals = state.goals.map((g) => g.id === id ? { ...g, savedAmount: Math.min(g.targetAmount, g.savedAmount + amount) } : g);
+  state.goals = state.goals.map((g) => g.id === id ? { ...g, kind: 'meta' } : g);
   saveState();
   renderAll();
-  showToast('Aporte registrado na meta!');
+  showToast('Transformada em Meta com barra de progresso!');
+};
+
+window.depositGoal = (id, defaultMonthly) => {
+  const suggestion = defaultMonthly > 0 ? String(defaultMonthly) : '';
+  const val = prompt('Quanto deseja colocar nessa meta? (R$)', suggestion);
+  const num = val ? Number(val.replace(',', '.')) : 0;
+  if (num > 0 && !Number.isNaN(num)) {
+    pushUndo();
+    state.goals = state.goals.map((g) => {
+      if (g.id !== id) return g;
+      const nextSaved = Math.round(((g.savedAmount || 0) + num) * 100) / 100;
+      return { ...g, savedAmount: nextSaved };
+    });
+    saveState();
+    renderAll();
+    showToast(`${brl(num)} adicionados na meta!`);
+  }
+};
+
+window.withdrawGoal = (id) => {
+  const val = prompt('Quanto deseja retirar dessa meta? (R$)');
+  const num = val ? Number(val.replace(',', '.')) : 0;
+  if (num > 0 && !Number.isNaN(num)) {
+    pushUndo();
+    state.goals = state.goals.map((g) => {
+      if (g.id !== id) return g;
+      return { ...g, savedAmount: Math.max(0, Math.round(((g.savedAmount || 0) - num) * 100) / 100) };
+    });
+    saveState();
+    renderAll();
+    showToast(`${brl(num)} retirados da meta.`);
+  }
 };
 
 window.deleteGoal = (id) => {
@@ -862,7 +976,6 @@ document.getElementById('btn-rollover').addEventListener('click', () => {
   let nextMonthCardBill = 0;
 
   state.fixedBills.forEach((item) => {
-    // Remove a fatura antiga do mês que passou (ela será substituída pela fatura gerada agora)
     if (item.isCardBill || item.name.toLowerCase().includes('fatura atual')) {
       return;
     }
@@ -880,7 +993,6 @@ document.getElementById('btn-rollover').addEventListener('click', () => {
   const nextDaily = [];
   state.dailyExpenses.forEach((d) => {
     if (d.paymentMethod === 'Cartão de Crédito') {
-      // A parcela atual do cartão entra para ser paga na fatura do novo mês
       nextMonthCardBill += Number(d.monthlyAmount);
       if (d.installments > 1 && d.curr < d.installments) {
         nextDaily.push({ ...d, curr: d.curr + 1, status: 'Pendente' });
@@ -945,7 +1057,7 @@ document.getElementById('btn-generate-statement').addEventListener('click', () =
   const b = computeBudget();
   document.getElementById('statement-title').textContent = `Extrato — ${monthLabel(state.currentMonthKey)}`;
   document.getElementById('statement-body').innerHTML = `
-    <p class="num"><strong>Entradas:</strong> ${brl(b.totalIncome)} | <strong>Gastos:</strong> ${brl(b.totalSpent)} | <strong>Livre:</strong> ${brl(b.freeBalance)} | <strong>Fatura Próx. Mês:</strong> ${brl(b.totalDailyCard)}</p>
+    <p class="num"><strong>Entradas:</strong> ${brl(b.totalIncome)} | <strong>Gastos:</strong> ${brl(b.totalSpent)} | <strong>Livre:</strong> ${brl(b.freeBalance)} | <strong>Cofre:</strong> ${brl(state.vaultSaved)}</p>
     <div class="divider"></div>
     <h3>Fixos &amp; Parcelas (${state.fixedBills.length})</h3>
     <div class="list-stack mt-8">
@@ -963,7 +1075,7 @@ document.getElementById('btn-sync-sheets').addEventListener('click', () => loadF
 document.getElementById('btn-sync-mobile').addEventListener('click', () => loadFromSheets(true));
 
 // =========================================================================
-// CONSULTOR FINANCEIRO LOCAL (100% OFFLINE — SEM CHAVE DE API EXTERNA)
+// CONSULTOR FINANCEIRO LOCAL (100% OFFLINE)
 // =========================================================================
 const chatDrawer = document.getElementById('chat-drawer');
 const chatMessages = document.getElementById('chat-messages');
@@ -1018,41 +1130,34 @@ function generateLocalAdvisorReply(rawQuestion) {
   }
 
   if (q.includes('comprar') || q.includes('aspirador') || q.includes('vale a pena') || q.includes('posso gastar') || q.includes('quanto posso')) {
-    const nextRelief = forecast.find((f) => f.savingsComparedToNow > 0);
     const lines = [
       `Para compras hoje em ${monthLabel(state.currentMonthKey)}, vocês têm:`,
       `• Limite no Cartão: ${brl(b.cardLimitAvailable)} disponíveis (vence no mês seguinte).`,
       `• Saldo Livre (Pix/Débito): ${brl(b.freeBalance)} após pagar todos os fixos.`,
+      `• No Cofre do Casal: ${brl(state.vaultSaved)} guardados.`,
+      '',
+      'Me mande o valor e as parcelas (ex: "aspirador 200 em 2x") que eu simulo o impacto exato para vocês!',
     ];
-    if (nextRelief) {
-      lines.push(`• Folga próxima: Em ${nextRelief.label} os fixos ficam em ${brl(nextRelief.fixedSum)}.`);
-    }
-    lines.push('', 'Me mande o valor e as parcelas (ex: "aspirador 480 em 4x") que eu simulo o impacto exato para vocês!');
     return lines.join('\n');
   }
 
-  if (q.includes('meta') || q.includes('reserva') || q.includes('guardar') || q.includes('viagem') || q.includes('carro')) {
-    if (state.goals.length === 0) {
-      const suggestedSave = Math.max(0, Math.round(b.freeBalance * 0.4));
-      return [
-        'Vocês ainda não cadastraram metas na aba "Reservas & Metas".',
-        `Com o saldo livre atual de ${brl(b.freeBalance)}, guardar cerca de ${brl(suggestedSave)}/mês deixa uma margem segura para imprevistos do Pudicasal.`,
-      ].join('\n');
+  if (q.includes('meta') || q.includes('cofre') || q.includes('guardar') || q.includes('vontade') || q.includes('viagem') || q.includes('carro')) {
+    const activeGoals = state.goals.filter((g) => g.kind !== 'vontade');
+    const wishes = state.goals.filter((g) => g.kind === 'vontade');
+    const lines = [`Cofre do Pudicasal: ${brl(state.vaultSaved)} guardados.`];
+    if (activeGoals.length) {
+      lines.push('', 'Metas em andamento:');
+      activeGoals.forEach((g) => {
+        lines.push(`• ${g.title}: ${brl(g.savedAmount || 0)}${g.targetAmount > 0 ? ` de ${brl(g.targetAmount)}` : ''}`);
+      });
     }
-    const totalMonthlyGoals = state.goals.reduce((s, g) => s + Number(g.monthlyContribution), 0);
-    const goalsSummary = state.goals.map((g) => {
-      const rem = Math.max(0, g.targetAmount - g.savedAmount);
-      const months = g.monthlyContribution > 0 ? Math.ceil(rem / g.monthlyContribution) : 0;
-      return `• ${g.title}: ${brl(g.savedAmount)} de ${brl(g.targetAmount)} (${rem === 0 ? 'Concluída!' : `faltam ${months} mes(es) guardando ${brl(g.monthlyContribution)}/mês`})`;
-    });
-    return [
-      `Acompanhamento das Metas (${brl(totalMonthlyGoals)}/mês no total):`,
-      ...goalsSummary,
-      '',
-      totalMonthlyGoals <= b.freeBalance
-        ? `Os aportes cabem dentro do saldo livre de ${brl(b.freeBalance)} (sobram ${brl(b.freeBalance - totalMonthlyGoals)}).`
-        : `Atenção: Os aportes somam ${brl(totalMonthlyGoals)}, acima do saldo livre atual de ${brl(b.freeBalance)}.`,
-    ].join('\n');
+    if (wishes.length) {
+      lines.push('', 'Lista de Vontades:');
+      wishes.forEach((w) => {
+        lines.push(`• ${w.title}${w.targetAmount > 0 ? ` — ${brl(w.targetAmount)}` : ''}`);
+      });
+    }
+    return lines.join('\n');
   }
 
   if (q.includes('parcela') || q.includes('proximo') || q.includes('próximo') || q.includes('folga') || q.includes('acaba')) {
@@ -1064,19 +1169,16 @@ function generateLocalAdvisorReply(rawQuestion) {
     return lines.join('\n');
   }
 
-  const nextRelief = forecast.find((f) => f.savingsComparedToNow > 0);
   return [
     `Resumo rápido do Pudicasal (${monthLabel(state.currentMonthKey)}):`,
-    `• Entradas: ${brl(b.totalIncome)} (Maria Eduarda: ${brl(b.totalMaria)} | Yagho: ${brl(b.totalYagho)})`,
-    `• Gastos do mês: ${brl(b.totalSpent)} (${b.pendingBills.length} conta(s) pendente(s))`,
-    `• Livre para gastar: ${brl(b.freeBalance)} | Cartão livre: ${brl(b.cardLimitAvailable)}`,
-    nextRelief ? `• Próximo mês (${nextRelief.label}): previsão de ${brl(nextRelief.fixedSum)} em fixos + fatura.` : '',
+    `• Entradas: ${brl(b.totalIncome)} | Gastos do mês: ${brl(b.totalSpent)}`,
+    `• Livre para gastar: ${brl(b.freeBalance)} | Cofre: ${brl(state.vaultSaved)} | Cartão livre: ${brl(b.cardLimitAvailable)}`,
     '',
-    'Você pode me perguntar coisas como:',
-    '— "Posso comprar um aspirador de 450 em 3x?"',
+    'Pergunte coisas como:',
+    '— "Posso comprar um aspirador de 200 em 2x?"',
     '— "Quando acaba nossas parcelas?"',
-    '— "Como estão nossas metas?"',
-  ].filter(Boolean).join('\n');
+    '— "Como está nosso cofre e metas?"',
+  ].join('\n');
 }
 
 document.getElementById('chat-form').addEventListener('submit', (e) => {
