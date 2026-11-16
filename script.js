@@ -77,11 +77,10 @@ if (!Array.isArray(state.goalCategories)) {
 
 let undoStack = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
 
-// Foto do Casal + Editor Interativo de Centralização e Zoom
+// Foto do Casal + Menu Flutuante ao Clicar + Editor de Centralização e Zoom
 function applyCouplePhoto(dataUrl) {
   const imgs = [document.getElementById('avatar-img-side'), document.getElementById('avatar-img-mobile')];
   const fallbacks = [document.getElementById('avatar-fallback-side'), document.getElementById('avatar-fallback-mobile')];
-  const adjustBtn = document.getElementById('avatar-adjust-side');
 
   if (dataUrl) {
     imgs.forEach((img) => {
@@ -89,11 +88,9 @@ function applyCouplePhoto(dataUrl) {
       img.classList.remove('hidden');
     });
     fallbacks.forEach((fb) => fb.classList.add('hidden'));
-    adjustBtn.classList.remove('hidden');
   } else {
     imgs.forEach((img) => img.classList.add('hidden'));
     fallbacks.forEach((fb) => fb.classList.remove('hidden'));
-    adjustBtn.classList.add('hidden');
   }
 }
 
@@ -105,6 +102,49 @@ const cropCircle = document.getElementById('crop-circle-box');
 const cropImg = document.getElementById('crop-preview-img');
 const zoomRange = document.getElementById('crop-zoom-range');
 const zoomLabel = document.getElementById('crop-zoom-label');
+const popSide = document.getElementById('avatar-popover-side');
+const popMobile = document.getElementById('avatar-popover-mobile');
+
+function closeAvatarPopovers() {
+  popSide.classList.add('hidden');
+  popMobile.classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.avatar-menu-anchor')) {
+    closeAvatarPopovers();
+  }
+});
+
+function handleAvatarClick(popoverEl) {
+  const hasPhoto = Boolean(localStorage.getItem(PHOTO_KEY));
+  if (!hasPhoto) {
+    photoInput.click();
+    return;
+  }
+  const isOpen = !popoverEl.classList.contains('hidden');
+  closeAvatarPopovers();
+  if (!isOpen) popoverEl.classList.remove('hidden');
+}
+
+document.getElementById('avatar-btn-side').addEventListener('click', () => handleAvatarClick(popSide));
+document.getElementById('avatar-btn-mobile').addEventListener('click', () => handleAvatarClick(popMobile));
+
+function triggerAdjustCurrentPhoto() {
+  closeAvatarPopovers();
+  const raw = localStorage.getItem(RAW_PHOTO_KEY) || localStorage.getItem(PHOTO_KEY);
+  if (raw) openCropModal(raw);
+}
+
+function triggerChangeNewPhoto() {
+  closeAvatarPopovers();
+  photoInput.click();
+}
+
+document.getElementById('opt-adjust-side').addEventListener('click', triggerAdjustCurrentPhoto);
+document.getElementById('opt-adjust-mobile').addEventListener('click', triggerAdjustCurrentPhoto);
+document.getElementById('opt-change-side').addEventListener('click', triggerChangeNewPhoto);
+document.getElementById('opt-change-mobile').addEventListener('click', triggerChangeNewPhoto);
 
 let cropState = {
   imgObj: null,
@@ -214,17 +254,6 @@ document.getElementById('btn-save-crop').addEventListener('click', () => {
 
 document.getElementById('btn-close-crop').addEventListener('click', () => cropModal.classList.add('hidden'));
 document.getElementById('btn-pick-new-photo').addEventListener('click', () => photoInput.click());
-
-document.getElementById('avatar-btn-side').addEventListener('click', () => photoInput.click());
-document.getElementById('avatar-adjust-side').addEventListener('click', () => {
-  const raw = localStorage.getItem(RAW_PHOTO_KEY) || localStorage.getItem(PHOTO_KEY);
-  if (raw) openCropModal(raw);
-});
-document.getElementById('avatar-btn-mobile').addEventListener('click', () => {
-  const raw = localStorage.getItem(RAW_PHOTO_KEY) || localStorage.getItem(PHOTO_KEY);
-  if (raw) openCropModal(raw);
-  else photoInput.click();
-});
 
 photoInput.addEventListener('change', (e) => {
   const file = e.target.files?.[0];
