@@ -1,7 +1,7 @@
 const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyqH5o5vTCqu-OP_ZBQOJb7jhaCRMQxiDGxqM-W9HXMW6RVPBj6xfkHBh5o7yZktNuW/exec';
 
-const STORAGE_KEY = 'nosso_caixa_v4';
-const HISTORY_KEY = 'nosso_caixa_undo_v4';
+const STORAGE_KEY = 'nosso_caixa_v5';
+const HISTORY_KEY = 'nosso_caixa_undo_v5';
 const THEME_KEY = 'nosso_caixa_theme';
 const PHOTO_KEY = 'pudi_financas_photo';
 const RAW_PHOTO_KEY = 'pudi_financas_raw_photo';
@@ -42,7 +42,7 @@ function initialFixedBills() {
     { id: 'f-6', name: 'Ração animais', amount: 100.00, kind: 'Fixo', status: 'Pago' },
     { id: 'f-7', name: 'Plano de Saúde', amount: 280.00, kind: 'Fixo', status: 'Pago' },
     { id: 'f-8', name: 'iCloud', amount: 20.00, kind: 'Fixo', status: 'Pago' },
-    { id: 'f-9', name: 'Cartão (Fatura atual)', amount: 547.57, kind: 'Fixo', status: 'Pago' },
+    { id: 'f-9', name: 'Cartão (Fatura atual)', amount: 547.57, kind: 'Fixo', status: 'Pago', isCardBill: true },
     { id: 'f-10', name: 'Santander', amount: 120.00, kind: 'Fixo', status: 'Pago' },
     { id: 'p-1', name: 'Guarda roupa e sapateira', amount: 382.83, kind: 'Parcelado', status: 'Pago', curr: 4, total: 12 },
     { id: 'p-2', name: 'Pintor', amount: 111.35, kind: 'Parcelado', status: 'Pago', curr: 3, total: 6 },
@@ -59,24 +59,24 @@ function initialDailyExpenses(monthKey) {
     {
       id: 'adj-pix-nov',
       description: 'Ajuste gastos extras (Novembro)',
-      totalAmount: 1096.61,
+      totalAmount: 496.61,
       installments: 1,
       curr: 1,
-      monthlyAmount: 1096.61,
+      monthlyAmount: 496.61,
       date: `${monthKey}-16`,
       paymentMethod: 'Pix/Débito',
       status: 'Pago',
     },
     {
       id: 'adj-card-nov',
-      description: 'Fatura avulsa cartão (Novembro)',
+      description: 'Compras no cartão (Fatura Dezembro)',
       totalAmount: 499.89,
       installments: 1,
       curr: 1,
       monthlyAmount: 499.89,
       date: `${monthKey}-16`,
       paymentMethod: 'Cartão de Crédito',
-      status: 'Pago',
+      status: 'Pendente',
     },
   ];
 }
@@ -378,6 +378,9 @@ function showToast(msg) {
   toastTimer = setTimeout(() => el.classList.add('hidden'), 3200);
 }
 
+// =========================================================================
+// CÁLCULO FINANCEIRO COM REGRA REAL DO CARTÃO (FATURA NO MÊS SEGUINTE)
+// =========================================================================
 function computeBudget() {
   const commissionActive = state.incomes.some((i) => {
     const desc = (i.description || '').toLowerCase();
@@ -407,7 +410,8 @@ function computeBudget() {
     else totalDailyPix += Number(d.monthlyAmount);
   });
 
-  const totalSpent = totalFixed + totalDailyPix + totalDailyCard;
+  // Gastos no Cartão entram só na fatura do mês seguinte (não duplicam neste mês)
+  const totalSpent = totalFixed + totalDailyPix;
   const freeBalance = totalIncome - totalFixed - totalDailyPix;
   const cardLimitAvailable = Number(state.cardLimitTotal) - totalDailyCard;
   const pendingBills = state.fixedBills.filter((b) => b.status === 'Pendente');
@@ -430,6 +434,10 @@ function buildForecast(monthsAhead = 6) {
     const endedThisMonth = [];
 
     state.fixedBills.forEach((b) => {
+      // A fatura paga neste mês é substituída pelos gastos no cartão deste mês
+      if (b.isCardBill || b.name.toLowerCase().includes('fatura atual')) {
+        return;
+      }
       if (b.kind === 'Fixo') {
         fixedSum += Number(b.amount);
       } else if (b.kind === 'Parcelado') {
@@ -442,8 +450,16 @@ function buildForecast(monthsAhead = 6) {
       }
     });
 
+    // Compras no Cartão deste mês vencem a partir do mês seguinte (offset 1 = parcela atual)
     state.dailyExpenses.forEach((d) => {
-      if (d.installments > 1 && d.curr + offset <= d.installments) {
+      if (d.paymentMethod === 'Cartão de Crédito') {
+        const futureCardCurr = d.curr + (offset - 1);
+        if (futureCardCurr <= d.installments) {
+          fixedSum += Number(d.monthlyAmount);
+        } else if (futureCardCurr === d.installments + 1 && d.installments > 1) {
+          endedThisMonth.push(d.description);
+        }
+      } else if (d.installments > 1 && d.curr + offset <= d.installments) {
         fixedSum += Number(d.monthlyAmount);
       }
     });
@@ -495,7 +511,7 @@ function renderAll() {
   const b = computeBudget();
   const mLabel = monthLabel(state.currentMonthKey);
 
-  // Cabeçalho Dinâmico (Opção 3: Título da aba + Mês em destaque)
+  // Cabeçalho Dinâmico
   document.getElementById('header-month-pill').textContent = mLabel;
   document.getElementById('header-tab-title').textContent = TAB_TITLES[activeTabId] || 'Visão Geral';
   document.getElementById('header-status-subtitle').textContent = b.pendingBills.length > 0
@@ -508,7 +524,7 @@ function renderAll() {
   document.getElementById('ov-income-note').textContent = b.commissionActive ? 'Comissão F&F ativa (Ajuda zerada)' : 'Salários base + Ajuda F&F + Pensão';
   document.getElementById('ov-spent').textContent = brl(b.totalSpent);
   document.getElementById('ov-card').textContent = brl(b.cardLimitAvailable);
-  document.getElementById('ov-card-note').textContent = `De ${brl(state.cardLimitTotal)}`;
+  document.getElementById('ov-card-note').textContent = `De ${brl(state.cardLimitTotal)} (fatura no próx. mês)`;
 
   const alertEl = document.getElementById('pending-alert');
   if (b.pendingBills.length > 0) {
@@ -527,7 +543,7 @@ function renderAll() {
     <div class="forecast-box">
       <span class="forecast-month">${f.label}</span>
       <strong class="forecast-val num">${brl(f.fixedSum)}</strong>
-      ${f.savingsComparedToNow > 0 ? `<span class="forecast-diff num">− ${brl(f.savingsComparedToNow)} de parcelas</span>` : '<span class="card-meta">Mesmo patamar atual</span>'}
+      ${f.savingsComparedToNow > 0 ? `<span class="forecast-diff num">− ${brl(f.savingsComparedToNow)} vs mês atual</span>` : '<span class="card-meta">Mesmo patamar atual</span>'}
       ${f.endedThisMonth.length ? `<div class="forecast-ended">Acaba: <strong>${f.endedThisMonth.join(', ')}</strong></div>` : ''}
     </div>
   `).join('');
@@ -562,7 +578,7 @@ function renderAll() {
   document.getElementById('exp-free').textContent = brl(b.freeBalance);
   document.getElementById('exp-total').textContent = brl(b.totalSpent);
   document.getElementById('exp-card').textContent = brl(b.cardLimitAvailable);
-  document.getElementById('exp-card-note').textContent = `Limite total: ${brl(state.cardLimitTotal)} · Usado: ${brl(b.totalDailyCard)}`;
+  document.getElementById('exp-card-note').textContent = `Limite: ${brl(state.cardLimitTotal)} · Próx. fatura: ${brl(b.totalDailyCard)}`;
   document.getElementById('fixed-total-label').textContent = `${state.fixedBills.length} itens · Total ${brl(b.totalFixed)}`;
 
   document.getElementById('fixed-list').innerHTML = state.fixedBills.map((item) => `
@@ -585,7 +601,7 @@ function renderAll() {
       <div class="list-row">
         <div>
           <div class="row-title">${d.description}</div>
-          <div class="row-sub num">${d.paymentMethod} · ${pad2(d.curr)}/${pad2(d.installments)} · ${d.date.split('-').reverse().join('/')}</div>
+          <div class="row-sub num">${d.paymentMethod}${d.paymentMethod === 'Cartão de Crédito' ? ' (Vence próx. mês)' : ''} · ${pad2(d.curr)}/${pad2(d.installments)} · ${d.date.split('-').reverse().join('/')}</div>
         </div>
         <div class="btn-row">
           <strong class="num text-red">${brl(d.monthlyAmount)}</strong>
@@ -735,10 +751,12 @@ document.getElementById('btn-edit-limit').addEventListener('click', () => {
 function updateDailyPreview() {
   const total = Number(document.getElementById('daily-total').value || 0);
   const parc = Number(document.getElementById('daily-installments').value || 1);
+  const method = document.getElementById('daily-method').value;
   const prevEl = document.getElementById('daily-preview');
-  if (total > 0 && parc > 1) {
+  if (total > 0 && (parc > 1 || method === 'Cartão de Crédito')) {
     prevEl.classList.remove('hidden');
-    prevEl.textContent = `Parcelamento: ${parc}x de ${brl(total / parc)}/mês`;
+    const note = method === 'Cartão de Crédito' ? ' (entra na fatura do mês que vem)' : '';
+    prevEl.textContent = `Parcelamento: ${parc}x de ${brl(total / parc)}/mês${note}`;
   } else {
     prevEl.classList.add('hidden');
   }
@@ -746,12 +764,14 @@ function updateDailyPreview() {
 
 document.getElementById('daily-total').addEventListener('input', updateDailyPreview);
 document.getElementById('daily-installments').addEventListener('change', updateDailyPreview);
+document.getElementById('daily-method').addEventListener('change', updateDailyPreview);
 
 document.getElementById('daily-form').addEventListener('submit', (e) => {
   e.preventDefault();
   pushUndo();
   const totalAmount = Number(document.getElementById('daily-total').value);
   const installments = Number(document.getElementById('daily-installments').value);
+  const paymentMethod = document.getElementById('daily-method').value;
   state.dailyExpenses.unshift({
     id: crypto.randomUUID(),
     description: document.getElementById('daily-desc').value.trim(),
@@ -760,12 +780,12 @@ document.getElementById('daily-form').addEventListener('submit', (e) => {
     curr: 1,
     monthlyAmount: Math.round((totalAmount / installments) * 100) / 100,
     date: document.getElementById('daily-date').value,
-    paymentMethod: document.getElementById('daily-method').value,
-    status: document.getElementById('daily-status').value,
+    paymentMethod,
+    status: paymentMethod === 'Cartão de Crédito' ? 'Pendente' : document.getElementById('daily-status').value,
   });
   saveState();
   renderAll();
-  showToast('Gasto lançado!');
+  showToast(paymentMethod === 'Cartão de Crédito' ? 'Lançado no cartão (vence no mês que vem)!' : 'Gasto lançado!');
   e.target.reset();
   document.getElementById('daily-date').value = today.toISOString().slice(0, 10);
   updateDailyPreview();
@@ -839,8 +859,13 @@ document.getElementById('btn-rollover').addEventListener('click', () => {
   const b = computeBudget();
   const completed = [];
   const nextFixed = [];
+  let nextMonthCardBill = 0;
 
   state.fixedBills.forEach((item) => {
+    // Remove a fatura antiga do mês que passou (ela será substituída pela fatura gerada agora)
+    if (item.isCardBill || item.name.toLowerCase().includes('fatura atual')) {
+      return;
+    }
     if (item.kind === 'Parcelado') {
       if (item.curr >= item.total) {
         completed.push(`${item.name} (${pad2(item.curr)}/${pad2(item.total)})`);
@@ -854,12 +879,31 @@ document.getElementById('btn-rollover').addEventListener('click', () => {
 
   const nextDaily = [];
   state.dailyExpenses.forEach((d) => {
-    if (d.installments > 1 && d.curr < d.installments) {
+    if (d.paymentMethod === 'Cartão de Crédito') {
+      // A parcela atual do cartão entra para ser paga na fatura do novo mês
+      nextMonthCardBill += Number(d.monthlyAmount);
+      if (d.installments > 1 && d.curr < d.installments) {
+        nextDaily.push({ ...d, curr: d.curr + 1, status: 'Pendente' });
+      } else if (d.installments > 1) {
+        completed.push(`${d.description} (${pad2(d.curr)}/${pad2(d.installments)})`);
+      }
+    } else if (d.installments > 1 && d.curr < d.installments) {
       nextDaily.push({ ...d, curr: d.curr + 1, status: 'Pendente' });
     } else if (d.installments > 1) {
       completed.push(`${d.description} (${pad2(d.curr)}/${pad2(d.installments)})`);
     }
   });
+
+  if (nextMonthCardBill > 0) {
+    nextFixed.unshift({
+      id: crypto.randomUUID(),
+      name: 'Cartão (Fatura atual)',
+      amount: Math.round(nextMonthCardBill * 100) / 100,
+      kind: 'Fixo',
+      status: 'Pendente',
+      isCardBill: true,
+    });
+  }
 
   state.archives.unshift({
     id: crypto.randomUUID(),
@@ -879,13 +923,14 @@ document.getElementById('btn-rollover').addEventListener('click', () => {
 
   saveState();
   renderAll();
-  showToast('Mês virado e arquivado com sucesso!');
+  showToast('Mês virado! Fatura do cartão transferida para o novo mês.');
 });
 
 document.getElementById('btn-reset-defaults').addEventListener('click', () => {
   if (!confirm('Deseja restaurar todas as contas fixas, parcelas e salários para o padrão inicial?')) return;
   pushUndo();
   const fresh = createInitialState();
+  state.currentMonthKey = fresh.currentMonthKey;
   state.incomes = fresh.incomes;
   state.fixedBills = fresh.fixedBills;
   state.dailyExpenses = fresh.dailyExpenses;
@@ -900,7 +945,7 @@ document.getElementById('btn-generate-statement').addEventListener('click', () =
   const b = computeBudget();
   document.getElementById('statement-title').textContent = `Extrato — ${monthLabel(state.currentMonthKey)}`;
   document.getElementById('statement-body').innerHTML = `
-    <p class="num"><strong>Entradas:</strong> ${brl(b.totalIncome)} | <strong>Gastos:</strong> ${brl(b.totalSpent)} | <strong>Livre:</strong> ${brl(b.freeBalance)} | <strong>Cartão Restante:</strong> ${brl(b.cardLimitAvailable)}</p>
+    <p class="num"><strong>Entradas:</strong> ${brl(b.totalIncome)} | <strong>Gastos:</strong> ${brl(b.totalSpent)} | <strong>Livre:</strong> ${brl(b.freeBalance)} | <strong>Fatura Próx. Mês:</strong> ${brl(b.totalDailyCard)}</p>
     <div class="divider"></div>
     <h3>Fixos &amp; Parcelas (${state.fixedBills.length})</h3>
     <div class="list-stack mt-8">
@@ -956,7 +1001,7 @@ function generateLocalAdvisorReply(rawQuestion) {
       `Simulação para ${brl(price)} (${installments > 1 ? `${installments}x de ${brl(monthlyPart)}/mês` : 'à vista'}):`,
       '',
       fitsCard
-        ? `• No Cartão de Crédito: Cabe! Vocês têm ${brl(b.cardLimitAvailable)} livres no cartão e sobraria ${brl(b.cardLimitAvailable - monthlyPart)} de limite.`
+        ? `• No Cartão de Crédito: Cabe! Vocês têm ${brl(b.cardLimitAvailable)} livres no cartão (vence só na fatura do mês que vem).`
         : `• No Cartão de Crédito: Estoura o limite atual de ${brl(b.cardLimitAvailable)} livres (faltam ${brl(monthlyPart - b.cardLimitAvailable)}).`,
       fitsFree
         ? `• No Pix / Débito (Saldo Livre): Cabe! De ${brl(b.freeBalance)} livres, ainda restariam ${brl(b.freeBalance - monthlyPart)} no mês.`
@@ -966,7 +1011,7 @@ function generateLocalAdvisorReply(rawQuestion) {
     if (nextRelief) {
       lines.push(
         '',
-        `Dica de timing: Em ${nextRelief.label}, acabam parcelas (${nextRelief.endedThisMonth.join(', ')}) e o orçamento de vocês ganha uma folga extra de ${brl(nextRelief.savingsComparedToNow)}/mês.`
+        `Dica de timing: Em ${nextRelief.label}, os fixos caem para ${brl(nextRelief.fixedSum)} (${nextRelief.endedThisMonth.length ? `acabam: ${nextRelief.endedThisMonth.join(', ')}` : 'redução de fatura'}).`
       );
     }
     return lines.join('\n');
@@ -976,11 +1021,11 @@ function generateLocalAdvisorReply(rawQuestion) {
     const nextRelief = forecast.find((f) => f.savingsComparedToNow > 0);
     const lines = [
       `Para compras hoje em ${monthLabel(state.currentMonthKey)}, vocês têm:`,
-      `• Limite no Cartão: ${brl(b.cardLimitAvailable)} disponíveis (parcela máxima recomendada no cartão: ${brl(b.cardLimitAvailable)}/mês).`,
+      `• Limite no Cartão: ${brl(b.cardLimitAvailable)} disponíveis (vence no mês seguinte).`,
       `• Saldo Livre (Pix/Débito): ${brl(b.freeBalance)} após pagar todos os fixos.`,
     ];
     if (nextRelief) {
-      lines.push(`• Folga próxima: Em ${nextRelief.label} liberam +${brl(nextRelief.savingsComparedToNow)}/mês (${nextRelief.endedThisMonth.join(', ')}).`);
+      lines.push(`• Folga próxima: Em ${nextRelief.label} os fixos ficam em ${brl(nextRelief.fixedSum)}.`);
     }
     lines.push('', 'Me mande o valor e as parcelas (ex: "aspirador 480 em 4x") que eu simulo o impacto exato para vocês!');
     return lines.join('\n');
@@ -1011,10 +1056,10 @@ function generateLocalAdvisorReply(rawQuestion) {
   }
 
   if (q.includes('parcela') || q.includes('proximo') || q.includes('próximo') || q.includes('folga') || q.includes('acaba')) {
-    const lines = ['Projeção dos gastos fixos nos próximos meses:'];
+    const lines = ['Projeção dos gastos fixos + fatura do cartão nos próximos meses:'];
     forecast.slice(0, 4).forEach((f) => {
       const extra = f.endedThisMonth.length ? ` (Acaba: ${f.endedThisMonth.join(', ')})` : '';
-      lines.push(`• ${f.label}: ${brl(f.fixedSum)}${f.savingsComparedToNow > 0 ? ` — economia de ${brl(f.savingsComparedToNow)}` : ''}${extra}`);
+      lines.push(`• ${f.label}: ${brl(f.fixedSum)}${extra}`);
     });
     return lines.join('\n');
   }
@@ -1023,9 +1068,9 @@ function generateLocalAdvisorReply(rawQuestion) {
   return [
     `Resumo rápido do Pudicasal (${monthLabel(state.currentMonthKey)}):`,
     `• Entradas: ${brl(b.totalIncome)} (Maria Eduarda: ${brl(b.totalMaria)} | Yagho: ${brl(b.totalYagho)})`,
-    `• Gastos totais: ${brl(b.totalSpent)} (${b.pendingBills.length} conta(s) pendente(s))`,
+    `• Gastos do mês: ${brl(b.totalSpent)} (${b.pendingBills.length} conta(s) pendente(s))`,
     `• Livre para gastar: ${brl(b.freeBalance)} | Cartão livre: ${brl(b.cardLimitAvailable)}`,
-    nextRelief ? `• Próximo alívio: ${nextRelief.label} (+${brl(nextRelief.savingsComparedToNow)}/mês ao encerrar ${nextRelief.endedThisMonth.join(', ')})` : '',
+    nextRelief ? `• Próximo mês (${nextRelief.label}): previsão de ${brl(nextRelief.fixedSum)} em fixos + fatura.` : '',
     '',
     'Você pode me perguntar coisas como:',
     '— "Posso comprar um aspirador de 450 em 3x?"',
