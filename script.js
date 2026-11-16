@@ -1,7 +1,7 @@
 const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyqH5o5vTCqu-OP_ZBQOJb7jhaCRMQxiDGxqM-W9HXMW6RVPBj6xfkHBh5o7yZktNuW/exec';
 
-const STORAGE_KEY = 'nosso_caixa_v3';
-const HISTORY_KEY = 'nosso_caixa_undo_v3';
+const STORAGE_KEY = 'nosso_caixa_v4';
+const HISTORY_KEY = 'nosso_caixa_undo_v4';
 const THEME_KEY = 'nosso_caixa_theme';
 const PHOTO_KEY = 'pudi_financas_photo';
 const RAW_PHOTO_KEY = 'pudi_financas_raw_photo';
@@ -18,7 +18,7 @@ const TAB_TITLES = {
 let activeTabId = 'visao-geral';
 
 const today = new Date();
-const defaultMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+const defaultMonthKey = '2026-11';
 
 function initialIncomes(monthKey) {
   const d = `${monthKey}-05`;
@@ -26,6 +26,7 @@ function initialIncomes(monthKey) {
     { id: 'inc-1', person: 'Maria Eduarda', description: 'Cobi', amount: 1750.00, date: d, isDefaultMonthly: true },
     { id: 'inc-2', person: 'Maria Eduarda', description: 'Dehon', amount: 300.00, date: d, isDefaultMonthly: true },
     { id: 'inc-3', person: 'Maria Eduarda', description: 'Club', amount: 400.00, date: d, isDefaultMonthly: true },
+    { id: 'inc-pensao', person: 'Maria Eduarda', description: 'Pensão', amount: 600.00, date: d, isDefaultMonthly: true },
     { id: 'inc-4', person: 'Yagho', description: 'F&F Energia (Salário Base)', amount: 2000.00, date: d, isDefaultMonthly: true },
     { id: 'inc-5', person: 'Yagho', description: 'F&F Energia (Ajuda de Custo)', amount: 500.00, date: d, isDefaultMonthly: true, isYaghoAllowance: true },
   ];
@@ -33,23 +34,50 @@ function initialIncomes(monthKey) {
 
 function initialFixedBills() {
   return [
-    { id: 'f-1', name: 'Aluguel', amount: 1217.00, kind: 'Fixo', status: 'Pendente' },
-    { id: 'f-2', name: 'Luz', amount: 130.00, kind: 'Fixo', status: 'Pendente' },
-    { id: 'f-3', name: 'Água', amount: 157.34, kind: 'Fixo', status: 'Pendente' },
-    { id: 'f-4', name: 'Internet', amount: 90.00, kind: 'Fixo', status: 'Pendente' },
-    { id: 'f-5', name: 'Compras', amount: 400.00, kind: 'Fixo', status: 'Pendente' },
-    { id: 'f-6', name: 'Ração animais', amount: 100.00, kind: 'Fixo', status: 'Pendente' },
-    { id: 'f-7', name: 'Plano de Saúde', amount: 280.00, kind: 'Fixo', status: 'Pendente' },
-    { id: 'f-8', name: 'iCloud', amount: 20.00, kind: 'Fixo', status: 'Pendente' },
-    { id: 'f-9', name: 'Cartão (Fatura atual)', amount: 547.57, kind: 'Fixo', status: 'Pendente' },
-    { id: 'f-10', name: 'Santander', amount: 120.00, kind: 'Fixo', status: 'Pendente' },
-    { id: 'p-1', name: 'Guarda roupa e sapateira', amount: 382.83, kind: 'Parcelado', status: 'Pendente', curr: 4, total: 12 },
-    { id: 'p-2', name: 'Pintor', amount: 111.35, kind: 'Parcelado', status: 'Pendente', curr: 3, total: 6 },
-    { id: 'p-3', name: 'Pintor 2', amount: 111.35, kind: 'Parcelado', status: 'Pendente', curr: 2, total: 6 },
-    { id: 'p-4', name: 'Empréstimo', amount: 321.50, kind: 'Parcelado', status: 'Pendente', curr: 3, total: 14 },
-    { id: 'p-5', name: 'Vestido', amount: 45.00, kind: 'Parcelado', status: 'Pendente', curr: 3, total: 4 },
-    { id: 'p-6', name: 'Roupa Yagho', amount: 34.00, kind: 'Parcelado', status: 'Pendente', curr: 3, total: 10 },
-    { id: 'p-7', name: 'Relicário', amount: 35.45, kind: 'Parcelado', status: 'Pendente', curr: 3, total: 4 },
+    { id: 'f-1', name: 'Aluguel', amount: 1217.00, kind: 'Fixo', status: 'Pago' },
+    { id: 'f-2', name: 'Luz', amount: 130.00, kind: 'Fixo', status: 'Pago' },
+    { id: 'f-3', name: 'Água', amount: 157.34, kind: 'Fixo', status: 'Pago' },
+    { id: 'f-4', name: 'Internet', amount: 90.00, kind: 'Fixo', status: 'Pago' },
+    { id: 'f-5', name: 'Compras', amount: 400.00, kind: 'Fixo', status: 'Pago' },
+    { id: 'f-6', name: 'Ração animais', amount: 100.00, kind: 'Fixo', status: 'Pago' },
+    { id: 'f-7', name: 'Plano de Saúde', amount: 280.00, kind: 'Fixo', status: 'Pago' },
+    { id: 'f-8', name: 'iCloud', amount: 20.00, kind: 'Fixo', status: 'Pago' },
+    { id: 'f-9', name: 'Cartão (Fatura atual)', amount: 547.57, kind: 'Fixo', status: 'Pago' },
+    { id: 'f-10', name: 'Santander', amount: 120.00, kind: 'Fixo', status: 'Pago' },
+    { id: 'p-1', name: 'Guarda roupa e sapateira', amount: 382.83, kind: 'Parcelado', status: 'Pago', curr: 4, total: 12 },
+    { id: 'p-2', name: 'Pintor', amount: 111.35, kind: 'Parcelado', status: 'Pago', curr: 3, total: 6 },
+    { id: 'p-3', name: 'Pintor 2', amount: 111.35, kind: 'Parcelado', status: 'Pago', curr: 2, total: 6 },
+    { id: 'p-4', name: 'Empréstimo', amount: 321.50, kind: 'Parcelado', status: 'Pago', curr: 3, total: 14 },
+    { id: 'p-5', name: 'Vestido', amount: 45.00, kind: 'Parcelado', status: 'Pago', curr: 3, total: 4 },
+    { id: 'p-6', name: 'Roupa Yagho', amount: 34.00, kind: 'Parcelado', status: 'Pago', curr: 3, total: 10 },
+    { id: 'p-7', name: 'Relicário', amount: 35.45, kind: 'Parcelado', status: 'Pago', curr: 3, total: 4 },
+  ];
+}
+
+function initialDailyExpenses(monthKey) {
+  return [
+    {
+      id: 'adj-pix-nov',
+      description: 'Ajuste gastos extras (Novembro)',
+      totalAmount: 1096.61,
+      installments: 1,
+      curr: 1,
+      monthlyAmount: 1096.61,
+      date: `${monthKey}-16`,
+      paymentMethod: 'Pix/Débito',
+      status: 'Pago',
+    },
+    {
+      id: 'adj-card-nov',
+      description: 'Fatura avulsa cartão (Novembro)',
+      totalAmount: 499.89,
+      installments: 1,
+      curr: 1,
+      monthlyAmount: 499.89,
+      date: `${monthKey}-16`,
+      paymentMethod: 'Cartão de Crédito',
+      status: 'Pago',
+    },
   ];
 }
 
@@ -59,7 +87,7 @@ function createInitialState() {
     cardLimitTotal: 500.00,
     incomes: initialIncomes(defaultMonthKey),
     fixedBills: initialFixedBills(),
-    dailyExpenses: [],
+    dailyExpenses: initialDailyExpenses(defaultMonthKey),
     goals: [],
     goalCategories: ['Viagem', 'Carro', 'Móveis', 'Reserva'],
     archives: [],
@@ -477,7 +505,7 @@ function renderAll() {
   // Visão Geral
   document.getElementById('ov-free').textContent = brl(b.freeBalance);
   document.getElementById('ov-income').textContent = brl(b.totalIncome);
-  document.getElementById('ov-income-note').textContent = b.commissionActive ? 'Comissão F&F ativa (Ajuda zerada)' : 'Salários base + Ajuda F&F';
+  document.getElementById('ov-income-note').textContent = b.commissionActive ? 'Comissão F&F ativa (Ajuda zerada)' : 'Salários base + Ajuda F&F + Pensão';
   document.getElementById('ov-spent').textContent = brl(b.totalSpent);
   document.getElementById('ov-card').textContent = brl(b.cardLimitAvailable);
   document.getElementById('ov-card-note').textContent = `De ${brl(state.cardLimitTotal)}`;
@@ -860,11 +888,11 @@ document.getElementById('btn-reset-defaults').addEventListener('click', () => {
   const fresh = createInitialState();
   state.incomes = fresh.incomes;
   state.fixedBills = fresh.fixedBills;
-  state.dailyExpenses = [];
+  state.dailyExpenses = fresh.dailyExpenses;
   state.cardLimitTotal = 500.00;
   saveState();
   renderAll();
-  showToast('Finanças restauradas para o padrão inicial!');
+  showToast('Finanças restauradas para o fechamento de Novembro!');
 });
 
 // Extrato do Mês
@@ -911,7 +939,6 @@ function generateLocalAdvisorReply(rawQuestion) {
   const b = computeBudget();
   const forecast = buildForecast(6);
 
-  // Extrai possível valor numérico e parcelas da pergunta (ex: "aspirador 450 em 3x")
   const parcMatch = q.match(/(\d+)\s*x\b/);
   const installments = parcMatch ? Math.max(1, Math.min(24, Number(parcMatch[1]))) : 1;
 
@@ -919,7 +946,6 @@ function generateLocalAdvisorReply(rawQuestion) {
   const priceMatch = cleanedForPrice.match(/(\d+(?:[.,]\d{1,2})?)/);
   const price = priceMatch ? Number(priceMatch[1].replace(',', '.')) : null;
 
-  // Caso 1: Usuário informou um valor para simular compra (ex: "aspirador 450", "comprar algo de 300 em 3x")
   if (price !== null && price > 0) {
     const monthlyPart = price / installments;
     const fitsCard = monthlyPart <= b.cardLimitAvailable;
@@ -946,7 +972,6 @@ function generateLocalAdvisorReply(rawQuestion) {
     return lines.join('\n');
   }
 
-  // Caso 2: Pergunta sobre compra sem informar preço (ex: "quero comprar um aspirador")
   if (q.includes('comprar') || q.includes('aspirador') || q.includes('vale a pena') || q.includes('posso gastar') || q.includes('quanto posso')) {
     const nextRelief = forecast.find((f) => f.savingsComparedToNow > 0);
     const lines = [
@@ -961,7 +986,6 @@ function generateLocalAdvisorReply(rawQuestion) {
     return lines.join('\n');
   }
 
-  // Caso 3: Pergunta sobre metas / reservas / viagem / carro
   if (q.includes('meta') || q.includes('reserva') || q.includes('guardar') || q.includes('viagem') || q.includes('carro')) {
     if (state.goals.length === 0) {
       const suggestedSave = Math.max(0, Math.round(b.freeBalance * 0.4));
@@ -986,7 +1010,6 @@ function generateLocalAdvisorReply(rawQuestion) {
     ].join('\n');
   }
 
-  // Caso 4: Pergunta sobre parcelas acabando / próximos meses / folga
   if (q.includes('parcela') || q.includes('proximo') || q.includes('próximo') || q.includes('folga') || q.includes('acaba')) {
     const lines = ['Projeção dos gastos fixos nos próximos meses:'];
     forecast.slice(0, 4).forEach((f) => {
@@ -996,7 +1019,6 @@ function generateLocalAdvisorReply(rawQuestion) {
     return lines.join('\n');
   }
 
-  // Resposta padrão: Diagnóstico geral inteligente + exemplos de comandos
   const nextRelief = forecast.find((f) => f.savingsComparedToNow > 0);
   return [
     `Resumo rápido do Pudicasal (${monthLabel(state.currentMonthKey)}):`,
