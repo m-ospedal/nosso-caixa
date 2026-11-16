@@ -306,6 +306,11 @@ body {
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.2s ease;
 }
 
+.vault-card {
+  border-top: 4px solid var(--green);
+  background: linear-gradient(180deg, var(--green-soft) 0%, var(--surface) 45%);
+}
+
 .kpi-card {
   position: relative;
   overflow: hidden;
@@ -341,6 +346,34 @@ body {
 .card-head-inline { display: flex; justify-content: space-between; align-items: center; }
 .card h2 { font-size: 1.05rem; font-weight: 700; }
 .card h3 { font-size: 0.9rem; font-weight: 600; }
+
+/* Tags Meta vs Vontade */
+.kind-pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.kind-pill.meta {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.kind-pill.vontade {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
+
+.opt-tag {
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
 
 /* Grade de Projeção Próximos Meses */
 .forecast-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
@@ -502,7 +535,7 @@ input:focus, select:focus { outline: 2px solid rgba(37, 99, 235, 0.25); border-c
 }
 
 .btn-delete:hover { background: var(--red-soft); color: var(--red); }
-.btn-row { display: flex; gap: 6px; align-items: center; }
+.btn-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .divider { border-top: 1px solid var(--border); margin: 18px 0 14px; }
 
 .list-stack { display: flex; flex-direction: column; }
@@ -538,7 +571,7 @@ input:focus, select:focus { outline: 2px solid rgba(37, 99, 235, 0.25); border-c
 
 .goals-stack { display: flex; flex-direction: column; gap: 14px; }
 .progress-track { width: 100%; height: 10px; background: var(--surface-alt); border-radius: 999px; overflow: hidden; margin-top: 8px; }
-.progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--purple)); border-radius: 999px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--purple)); border-radius: 999px; transition: width 0.25s ease; }
 .progress-fill.done { background: var(--green); }
 
 /* Modais */
@@ -625,8 +658,6 @@ input:focus, select:focus { outline: 2px solid rgba(37, 99, 235, 0.25); border-c
 
 .chat-msg.user { align-self: flex-end; background: var(--blue); color: #fff; }
 .chat-msg.model { align-self: flex-start; background: var(--surface-alt); border: 1px solid var(--border); }
-.chat-sources { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.75rem; }
-.chat-sources a { display: block; color: var(--blue); text-decoration: none; margin-top: 4px; }
 .chat-input-bar { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); }
 
 /* Bottom Nav Mobile */
