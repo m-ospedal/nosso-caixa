@@ -46,7 +46,7 @@
           <span class="nav-dot"></span> Despesas &amp; Fixos
         </button>
         <button type="button" class="side-link" data-tab="metas">
-          <span class="nav-dot"></span> Reservas &amp; Metas
+          <span class="nav-dot"></span> Cofre &amp; Metas
         </button>
         <button type="button" class="side-link" data-tab="arquivos">
           <span class="nav-dot"></span> Arquivos
@@ -305,14 +305,37 @@
           </div>
         </section>
 
-        <!-- ABA 4: RESERVAS & METAS -->
+        <!-- ABA 4: COFRE, METAS & VONTADES -->
         <section id="tab-metas" class="tab-panel">
-          <div class="two-col">
+          <!-- CARD DO COFRE MENSAL DO CASAL -->
+          <article class="card vault-card">
+            <div class="card-head">
+              <div>
+                <span class="card-label">Cofre do Pudicasal</span>
+                <strong id="vault-total" class="card-value num text-green">R$ 0,00</strong>
+                <span id="vault-monthly-note" class="card-meta">Reserva geral que vocês vão guardando por mês</span>
+              </div>
+              <div class="btn-row">
+                <button type="button" id="btn-vault-add" class="btn-green">+ Guardar no Cofre</button>
+                <button type="button" id="btn-vault-sub" class="btn-outline">Retirar</button>
+              </div>
+            </div>
+          </article>
+
+          <div class="two-col mt-20">
             <article class="card">
-              <h2>Nova Reserva / Meta</h2>
-              <p class="card-meta">Planeje viagem, carro ou crie categorias próprias</p>
+              <h2>Adicionar Meta ou Vontade</h2>
+              <p class="card-meta">Todos os campos de valor são opcionais</p>
 
               <form id="goal-form" class="form-stack mt-16">
+                <div class="field">
+                  <label for="goal-kind">Tipo</label>
+                  <select id="goal-kind">
+                    <option value="meta">Meta (com barra para ir enchendo)</option>
+                    <option value="vontade">Só uma vontade (lista de desejos)</option>
+                  </select>
+                </div>
+
                 <div class="field">
                   <div class="card-head-inline">
                     <label for="goal-cat">Categoria</label>
@@ -320,25 +343,29 @@
                   </div>
                   <select id="goal-cat"></select>
                 </div>
+
                 <div class="field">
-                  <label for="goal-title">Objetivo</label>
-                  <input id="goal-title" type="text" placeholder="Ex.: Viagem de férias" required />
+                  <label for="goal-title">O que é? *</label>
+                  <input id="goal-title" type="text" placeholder="Ex.: Aspirador de pó, Viagem..." required />
                 </div>
+
                 <div class="field-row">
                   <div class="field">
-                    <label for="goal-target">Valor Total (R$)</label>
-                    <input id="goal-target" type="number" step="0.01" min="1" inputmode="decimal" required />
+                    <label for="goal-target">Valor (R$) <span class="opt-tag">(opcional)</span></label>
+                    <input id="goal-target" type="number" step="0.01" min="0" inputmode="decimal" placeholder="Ex.: 200,00" />
                   </div>
-                  <div class="field">
-                    <label for="goal-monthly">Poupança / mês (R$)</label>
-                    <input id="goal-monthly" type="number" step="0.01" min="1" inputmode="decimal" required />
+                  <div id="goal-monthly-wrap" class="field">
+                    <label for="goal-monthly">Por mês (R$) <span class="opt-tag">(opcional)</span></label>
+                    <input id="goal-monthly" type="number" step="0.01" min="0" inputmode="decimal" placeholder="Opcional" />
                   </div>
                 </div>
-                <div class="field">
-                  <label for="goal-saved">Já guardado (R$)</label>
+
+                <div id="goal-saved-wrap" class="field">
+                  <label for="goal-saved">Já guardado (R$) <span class="opt-tag">(opcional)</span></label>
                   <input id="goal-saved" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00" />
                 </div>
-                <button type="submit" class="btn-primary">Criar Meta</button>
+
+                <button type="submit" id="goal-submit-btn" class="btn-primary">Salvar Meta</button>
               </form>
             </article>
 
@@ -426,24 +453,24 @@
     </div>
   </div>
 
-  <!-- Balão Flutuante Conselheiro IA -->
-  <button type="button" id="chat-fab" class="chat-fab" aria-label="Abrir Conselheiro IA">IA</button>
+  <!-- Balão Flutuante Consultor Local -->
+  <button type="button" id="chat-fab" class="chat-fab" aria-label="Abrir Consultor">IA</button>
 
-  <section id="chat-drawer" class="chat-drawer hidden" aria-label="Conselheiro IA">
+  <section id="chat-drawer" class="chat-drawer hidden" aria-label="Consultor Financeiro">
     <div class="chat-header">
       <div>
-        <h2>Conselheiro IA</h2>
+        <h2>Consultor do Casal</h2>
         <p id="chat-context-preview" class="card-meta num"></p>
       </div>
       <button type="button" id="chat-close" class="btn-delete" aria-label="Fechar chat">✕</button>
     </div>
     <div id="chat-messages" class="chat-messages">
       <div class="chat-msg model">
-        Olá, Maria Eduarda e Yagho! Já acompanho o saldo livre, limite do cartão, fixos e metas do Pudicasal. Como posso ajudar?
+        Olá, Maria Eduarda e Yagho! Já acompanho o saldo livre, cofre, cartão e metas do Pudicasal. Pergunte quanto podem gastar ou simular uma compra!
       </div>
     </div>
     <form id="chat-form" class="chat-input-bar">
-      <input id="chat-input" type="text" placeholder="Pergunte sobre preços ou metas..." required />
+      <input id="chat-input" type="text" placeholder="Ex.: aspirador 200 em 2x..." required />
       <button type="submit" id="chat-submit" class="btn-primary">Enviar</button>
     </form>
   </section>
@@ -453,7 +480,7 @@
     <button type="button" class="bottom-tab active" data-tab="visao-geral">Geral</button>
     <button type="button" class="bottom-tab" data-tab="entradas">Entradas</button>
     <button type="button" class="bottom-tab" data-tab="despesas">Despesas</button>
-    <button type="button" class="bottom-tab" data-tab="metas">Metas</button>
+    <button type="button" class="bottom-tab" data-tab="metas">Cofre</button>
     <button type="button" class="bottom-tab" data-tab="arquivos">Arquivos</button>
   </nav>
 
